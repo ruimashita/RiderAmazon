@@ -1,0 +1,56 @@
+/* 投稿ページ Amazon.co.jp 検索 */
+
+table#yo_amazonLink_list tr th,
+table#yo_amazonLink_list tr td
+{
+	padding-top: 1.5em;
+	vertical-align: top;
+}
+
+table#yo_amazonLink_list tr td.number
+{
+	font-weight: bold;
+}
+
+table#yo_amazonLink_list tr td.itemImage a
+{
+	border-style: none;
+	text-decoration: none;
+}
+
+table#yo_amazonLink_list tr td.infomation a
+{
+	font-weight: bold;
+}
+
+table#yo_amazonLink_list tr td.infomation code
+{
+	font-family: "ＭＳ ゴシック", "Osaka-等幅", "平成角ゴシック", "Osaka-Mono", "等幅ゴシック", monospace;
+}
+
+
+/* オプションページ */
+div#AmazonLink
+{
+	font-family: "ＭＳ Ｐゴシック","ＭＳ ゴシック","平成角ゴシック","Osaka",sans-serif;
+}
+
+div#AmazonLink fieldset
+{
+	border-style: solid;
+	border-width: 1px;
+	border-color: #B2B2B2;
+	margin-bottom: 1em;
+	padding-left: 1em;
+}
+
+div#AmazonLink ul li
+{
+	list-style: none;
+}
+
+div#AmazonLink code,
+div#AmazonLink var
+{
+	font-family: "ＭＳ ゴシック", "Osaka-等幅", "平成角ゴシック", "Osaka-Mono", "等幅ゴシック", monospace;
+}
