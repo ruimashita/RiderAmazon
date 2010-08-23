@@ -4,7 +4,7 @@ Plugin Name: RiderAmazon
 Plugin URI: http://retujyou.com/rideramazon/
 Description: 投稿画面でASINの検索。本文中に[amazon]ASIN[/amazon]を記入でAmazon.co.jpから情報を取得。
 Author: rui_mashita
-Version: 0.0.4
+Version: 0.0.5
 Author URI: http://retujyou.com
 Special Thanks: Tomokame (http://tomokame.moo.jp/)
 Special Thanks: Keith Devens.com (http://keithdevens.com/software/phpxml)
@@ -34,31 +34,20 @@ Special Thanks: leva (http://note.openvista.jp/187/(
 
 ***************************/
 
-$rideramazon = new RiderAmazon();
-// Hooks
-add_shortcode('amazon', array(&$rideramazon, 'replaceCode'));
-add_action('wp_head', array(&$rideramazon, '_addWpHead'));
-add_action('admin_head', array(&$rideramazon, '_addAdminHead'));
-add_action('admin_print_scripts', array(&$rideramazon, '_admin_print_scripts'));
-add_action('admin_menu', array(&$rideramazon, '_addCustomBox'));
 
-register_activation_hook( __FILE__,array (&$rideramazon, '_rideramazonRegisterHook'));
-register_deactivation_hook( __FILE__,array (&$rideramazon, '_rideramazonNotRegisterHook'));
-
+if ( !class_exists( 'RiderAmazon' ) ) {
 class RiderAmazon{
 
 	//各種設定、変更して下さい。
 
 	// Amazon.co.jp アソシエイトID
-	var $AssociatesID = "";
+	var $AssociatesID = "retujyou-22";
 	// Amazon.co.jp サブスクリプションID
 	var $SubscriptionID = "1P1KJSTVRDMR2FA0ZGG2";
 	// サムネイル変換の際、リサイズ後の長辺の最大値を記入
 	var $resize = 240;
-	// 購入数・クリック数情報を表示するか（上級者向け）
-	// （trueの場合は PEAR::HTTP_Client が必要）
+	// 購入数・クリック数情報を表示するか（trueの場合は PEAR::HTTP_Client が必要）
 	var $show_iteminfo = true;
-
 	//(Amazon.co.jp アソシエイトのアカウント情報を入力してください）
 	// アカウントのEメールアドレス
 	var $email = "";
@@ -113,7 +102,6 @@ class RiderAmazon{
 //		wp_schedule_event(time(), 'daily', '_rideramazonDailyEvent');
 		wp_schedule_event(time(), 'hourly', '_rideramazonDailyEvent');
 		
-
 	}
 
 	/*
@@ -123,12 +111,12 @@ class RiderAmazon{
 	 */
 	function _rideramazonDailyEvent() {
 		
-
 		$this->getReport();
 		$this->saveReport();
 
 		$amazonDB = new AmazonDB($this->pluginDir,$this->pluginDirUrl);
 		$amazonDB->makeDB();
+       // echo  "毎日のイベント" ;
 	}
 
 	/*
@@ -150,13 +138,13 @@ class RiderAmazon{
 	 */
 	function _addCustomBox() {
 	
-	  if( function_exists( 'add_meta_box' )) {
-	    add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'post', 'advanced' );
-	    add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'page', 'advanced' );
-	   } else {
-	    add_action('dbx_post_advanced', array(&$this, 'ridertest') );
-	    add_action('dbx_page_advanced', 'riderdbxPost' );
-	  }
+        if( function_exists( 'add_meta_box' )) {
+            add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'post', 'advanced' );
+            add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'page', 'advanced' );
+        } else {
+            add_action('dbx_post_advanced', array(&$this, 'ridertest') );
+            add_action('dbx_page_advanced', 'riderdbxPost' );
+        }
 	}
 
 
@@ -167,7 +155,6 @@ class RiderAmazon{
 <link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/amazon.css" />
 <?php
 	}
-
 
 
 	// 管理画面用スクリプトの登録をする
@@ -185,8 +172,8 @@ class RiderAmazon{
 	/**
 	 * 管理画面のヘッダ
 	 */
-	function _addAdminHead()
-	{
+	function _addAdminHead(){
+
 ?>
 <link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/admin.css" />
 <?php
@@ -203,10 +190,6 @@ class RiderAmazon{
 
 		}
 	}
-
-
-
-
 	 
 	/*
 	 * 記事作成画面のドッキングボックス
@@ -293,7 +276,6 @@ foreach ( $categories as $key => $value )
 		if( !($asinCode=='') ){
 			$this->asin_ = $asinCode ;
 
-			
 			// 前準備
 			$this->getData();
 			// HTMLコードを生成
@@ -302,13 +284,8 @@ foreach ( $categories as $key => $value )
 			return $htmlCode;
 		}
 		
-				
-		
 	}
 	
-
-
-
 	/*** 下ごしらえ：データを取得 ***/
 	
 	function getData(){
@@ -318,7 +295,8 @@ foreach ( $categories as $key => $value )
 		
 		$AmazonXML = $this->connectECS($this->asin_);
 		
-		// AmazonECSか自分がネットワークから離脱している場合
+	
+	// AmazonECSか自分がネットワークから離脱している場合
 		if (false === $AmazonXML){ 
 			$this->errors[] = __("An error occured. Please reaload this page.", "$this->i18nDomain");
 		}
@@ -335,6 +313,7 @@ foreach ( $categories as $key => $value )
 		$this->Type = $this->item->ItemAttributes->ProductGroup;
 		$this->Title = $this->item->ItemAttributes->Title;
 		$this->Creator = $this->item->ItemAttributes->Creator;
+		$this->Author = $this->item->ItemAttributes->Author;
 		$this->Manufacturer = $this->item->ItemAttributes->Manufacturer;
 		$this->Currency = $this->item->ItemAttributes->ListPrice->CurrencyCode;
 		$this->Binding = $this->item->ItemAttributes->Binding;
@@ -431,7 +410,6 @@ foreach ( $categories as $key => $value )
 			case "12": $this->ISBN_12to10(); break;
 		}
 		
-		
 	}
 	
 	
@@ -440,7 +418,7 @@ foreach ( $categories as $key => $value )
 	function createGraphicalCode(){
 		
 		$htmlCode .= '<div class="hreview">';
-		
+
 		$htmlCode .= "\n".'<div class="item item-'. $this->ASIN .'">';
 		
 		// カバー画像
@@ -477,7 +455,7 @@ foreach ( $categories as $key => $value )
 		$htmlCode .= "\n<tbody>\n";
 		
 		// 製作者
-		if (!empty($this->Creator)){
+		if (!empty($this->Creator) || !empty($this->Author)){
 			$htmlCode .= "<tr>";
 			$htmlCode .= "<th>". $this->str_creator ."</th>";
 			$htmlCode .= "<td>";
@@ -551,10 +529,6 @@ foreach ( $categories as $key => $value )
 	}
 	
 
-
-	
-
-	
 	/*** 購入者情報を返す ***/
 	
 	function getActionData(){
@@ -586,9 +560,6 @@ foreach ( $categories as $key => $value )
 	
 	function showAddCartButton(){
 		
-
-
-
 		$tmpCode = '<form class="showaddcartbutton" action="http://www.amazon.co.jp/gp/aws/cart/add.html" method="post">';
 		$tmpCode .= '<input name="ASIN.1" value="'. $this->ASIN .'" type="hidden" />';
 		$tmpCode .= '<input name="Quantity.1" value="1" type="hidden" />';
@@ -631,7 +602,16 @@ foreach ( $categories as $key => $value )
 	function getCreators(){
 		
 		unset($tmpCode);
-		
+
+
+
+        if($this->Type == "Book"){
+            $this->Creator = $this->Author;
+            // var_dump($this->Author);
+            // var_dump($this->Creator);
+        }
+
+
 		if (isset($this->Creator[1])){
 
 			for ($q=0; $q<5; $q++){
@@ -691,9 +671,7 @@ foreach ( $categories as $key => $value )
 			
 		// キャッシュがない場合、画像を取得して設定
 		} else{
-			
-			
-			
+
 			// 入手可能なできるだけ大きい画像を取得
 			
 				
@@ -704,8 +682,6 @@ foreach ( $categories as $key => $value )
 				} elseif (!empty($this->item->SmallImage->URL)){
 					$source = $this->item->SmallImage->URL;
 				}
-				
-			
 			
 			// 外部に画像がなかった場合
 			if (empty($source)){
@@ -1001,8 +977,11 @@ foreach ( $categories as $key => $value )
 
 
 }
+//end of class exists
+}
 
 
+if ( !class_exists( 'AmazonDB' ) ) {
 class AmazonDB{
 
 	function __construct($pluginDir,$pluginDirUrl){
@@ -1130,6 +1109,21 @@ class AmazonDB{
 
 	}
 
+}
+//end of class exists
+}
+
+if ( class_exists( 'RiderAmazon' ) ) {
+    $rideramazon = new RiderAmazon();
+    // Hooks
+    add_shortcode('amazon', array(&$rideramazon, 'replaceCode'));
+    add_action('wp_head', array(&$rideramazon, '_addWpHead'));
+    add_action('admin_head', array(&$rideramazon, '_addAdminHead'));
+    add_action('admin_print_scripts', array(&$rideramazon, '_admin_print_scripts'));
+    add_action('admin_menu', array(&$rideramazon, '_addCustomBox'));
+
+    register_activation_hook( __FILE__,array (&$rideramazon, '_rideramazonRegisterHook'));
+    register_deactivation_hook( __FILE__,array (&$rideramazon, '_rideramazonNotRegisterHook'));
 }
 
 ?>
