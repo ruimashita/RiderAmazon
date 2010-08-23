@@ -4,7 +4,7 @@ Plugin Name: RiderAmazon
 Plugin URI: http://retujyou.com/rideramazon/
 Description: 投稿画面でASINの検索。本文中に[amazon]ASIN[/amazon]を記入でAmazon.co.jpから情報を取得。
 Author: rui_mashita
-Version: 0.0.3
+Version: 0.0.4
 Author URI: http://retujyou.com
 Special Thanks: Tomokame (http://tomokame.moo.jp/)
 Special Thanks: Keith Devens.com (http://keithdevens.com/software/phpxml)
@@ -40,7 +40,7 @@ add_shortcode('amazon', array(&$rideramazon, 'replaceCode'));
 add_action('wp_head', array(&$rideramazon, '_addWpHead'));
 add_action('admin_head', array(&$rideramazon, '_addAdminHead'));
 add_action('admin_print_scripts', array(&$rideramazon, '_admin_print_scripts'));
-add_action('dbx_post_advanced', array(&$rideramazon, '_dbxPost'));
+add_action('admin_menu', array(&$rideramazon, '_addCustomBox'));
 
 register_activation_hook( __FILE__,array (&$rideramazon, '_rideramazonRegisterHook'));
 register_deactivation_hook( __FILE__,array (&$rideramazon, '_rideramazonNotRegisterHook'));
@@ -50,7 +50,7 @@ class RiderAmazon{
 	//各種設定、変更して下さい。
 
 	// Amazon.co.jp アソシエイトID
-	var $AssociatesID = "retujyou-22";
+	var $AssociatesID = "";
 	// Amazon.co.jp サブスクリプションID
 	var $SubscriptionID = "1P1KJSTVRDMR2FA0ZGG2";
 	// サムネイル変換の際、リサイズ後の長辺の最大値を記入
@@ -112,6 +112,7 @@ class RiderAmazon{
 
 //		wp_schedule_event(time(), 'daily', '_rideramazonDailyEvent');
 		wp_schedule_event(time(), 'hourly', '_rideramazonDailyEvent');
+		
 
 	}
 
@@ -140,6 +141,24 @@ class RiderAmazon{
 		wp_clear_scheduled_hook('_rideramazonDailyEvent');
 
 	}
+
+	/*
+	 * 記事作成画面のボックスを追加するフック
+	 * 旧と新で場合わけ
+	 * 
+	 * @return none
+	 */
+	function _addCustomBox() {
+	
+	  if( function_exists( 'add_meta_box' )) {
+	    add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'post', 'advanced' );
+	    add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'page', 'advanced' );
+	   } else {
+	    add_action('dbx_post_advanced', array(&$this, 'ridertest') );
+	    add_action('dbx_page_advanced', 'riderdbxPost' );
+	  }
+	}
+
 
 	function _addWpHead(){
 
@@ -188,11 +207,13 @@ class RiderAmazon{
 
 
 
-	// 記事作成画面のドッキングボックス
+	 
 	/*
+	 * 記事作成画面のドッキングボックス
+	 * 
 	 * @return none
 	 */
-	function _dbxPost()
+	public function _dbxPost()
 	{
 		global $post;
 
@@ -214,9 +235,7 @@ class RiderAmazon{
 			__('アパレル＆シューズ', $this->i18nDomain) => 'Apparel',
 					);
 ?>
-<div id="yo_amazonLink_dbx" class="postbox open">
-<h3 class="dbx-handle">Amazon.co.jp 商品検索</h3>
-<div class="inside">
+
 <form action="#" method="GET" onsubmit="return false;">
 <input type="hidden" name="yo_amazonLink_trackingId" id="yo_amazonLink_trackingId" value="<?php echo $this->AssociatesID; ?>" />
 <input type="hidden" name="yo_amazonLink_url" id="yo_amazonLink_url" value="<?php echo $this->pluginDirUrl; ?>" />
@@ -240,11 +259,26 @@ foreach ( $categories as $key => $value )
 <input type="button" name="yo_amazonLink_toNextPage" id="yo_amazonLink_toNextPage" value="次のページへ" />
 </form>
 <div name="yo_amazonLink_result" id="yo_amazonLink_result"></div>
-</div>
-</div>
+
 <?php
+
+
 	}
 
+	/*
+	 * 旧記事作成画面のボックス
+	 * 
+	 * 
+	 * 
+	 */
+	 function _oldDbxBox(){
+	 	echo '<div id="yo_amazonLink_dbx" class="postbox open">
+		<h3 class="dbx-handle">RiderAmazon 商品検索</h3>
+		<div class="inside"';
+	 	$this->_dbxBox();
+	 	echo '</div>
+		</div>';
+	 }
 
 
 	/**
@@ -1096,9 +1130,6 @@ class AmazonDB{
 
 	}
 
-	
- 
-	
 }
 
 ?>
