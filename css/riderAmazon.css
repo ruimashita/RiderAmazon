@@ -1,0 +1,114 @@
+@charset "utf-8";
+
+/*
+*
+*riderAmazon CSS
+*
+*/
+.riderAmazon * {
+    margin:0;
+    padding:0;
+    border:0 none ;
+
+}
+
+.riderAmazon{
+
+    margin:2em 0 0 ;
+    padding:1em;
+    text-align:left;
+    background-color:transparent;
+    border:1px solid #999;
+    border-spacing:0;
+    border-radius:20px;
+    -moz-border-radius:20px;
+    -webkit-border-radius:20px;
+    box-shadow:  5px 5px 5px  #888;
+    -moz-box-shadow:7px 7px 7px #888;
+    -webkit-box-shadow: 5px 5px 5px #888;
+
+}
+
+.riderAmazon .fn{
+    margin: 0 0 1em;
+    font-size:1.1em;
+   /* text-shadow: 3px 3px 5px #888; */
+
+
+}
+
+.riderAmazon .image{
+    float:left;
+    margin: 0 1.5em 1.5em 0;
+    box-shadow: 5px 5px 5px #888;
+    -moz-box-shadow: 5px 5px 5px #888;
+    -webkit-box-shadow: 10px 10px 5px #888;
+   /* text-shadow: 3px 3px 5px #888; */
+
+
+}
+
+.riderAmazon a img{
+    
+}
+
+.riderAmazon a:hover img{
+
+}
+
+.riderAmazon strong{
+	color:#ff4400;
+}
+
+
+.riderAmazon .buttons{
+	margin:0.5em 0;
+
+}
+
+.riderAmazon a.showdetailbutton{
+	float:left;
+
+}
+.riderAmazon a.showdetailbutton img{
+
+}
+.riderAmazon .showaddcartbutton{
+
+}
+
+.riderAmazon .showaddcartbutton input{
+
+}
+
+.riderAmazon .showaddcartbutton p{
+
+}
+
+
+.riderAmazon table{
+        border-width: 1px ;
+    border-style: solid;
+    background-color: #eee;
+    border-color: #999;
+    margin: 0.5em 1em;
+    border-spacing:0;
+    border-radius:10px;
+    -moz-border-radius:10px ;
+    -webkit-border-radius:10px;
+    box-shadow:  5px 5px 5px  #888;
+    -moz-box-shadow:5px 5px 5px #888;
+    -webkit-box-shadow: 5px 5px 5px #888;
+    border-collapse : separate ;
+}
+
+
+
+
+.riderAmazon table th, .riderAmazon table td{
+    background-color:transparent;
+    margin:1em 0;
+    border-spacing:0;
+    padding : 0.3em 0.5em;
+    border-bottom:1px solid #ccc;
+}

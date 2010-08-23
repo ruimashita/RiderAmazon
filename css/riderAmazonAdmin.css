@@ -1,0 +1,95 @@
+@charset "utf-8";
+
+/* riderAmazon Option Page CSS */
+
+#riderAmazon_result{
+    padding:0.5em 0 0;
+}
+
+#riderAmazonLoadingImage{
+    margin:0 0 0 ;
+    display:block;
+}
+
+#riderAmazon_result div.error{
+
+    padding:1em;
+    display:none;
+
+}
+
+#riderAmazon_resultTable{
+    display:none;
+}
+
+#riderAmazon_result table{
+
+    background-color:#F9F9F9;
+    border-color:#DFDFDF;
+    border-spacing:0;
+    border-style:solid;
+    border-width:1px;
+    width:100%;
+    margin:1em 0;
+    border-radius:6px;
+    -moz-border-radius:6px;
+    -webkit-border-radius: 6px;
+
+
+}
+
+#riderAmazon_result thead{
+    background-color:#F1F1F1;
+    width:100%;
+}
+
+
+
+#riderAmazon_result thead th{
+
+    background-color:#F1F1F1;
+    padding:0.5em;
+}
+
+#riderAmazon_result th.titleAndCode{
+    text-align:left;
+}
+
+#riderAmazon_result tbody td, #riderAmazon_result tbody th{
+    padding:1em 0.5em;
+    border-spacing:0;
+    border-top:1px solid #DFDFDF;
+}
+
+#riderAmazon_result tbody th.number{
+    vertical-align:top;
+     padding:1em 0;
+}
+
+#riderAmazon_result tbody td{
+   
+}
+
+#riderAmazon_result td.image{
+    margin: 0 auto ;
+
+}
+
+
+#riderAmazonAdminOptionPage fieldset{
+  border:1px solid #DFDFDF;
+margin:1em 0;
+padding:1em;
+
+}
+
+#riderAmazonAdminOptionPage legend{
+
+padding: 0 1em;
+
+
+}
+
+#riderAmazonAdminOptionUpdated{
+  
+}
