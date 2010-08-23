@@ -1,10 +1,10 @@
 <?php
 /*
 Plugin Name: RiderAmazon
-Plugin URI: http://retujyou.com
+Plugin URI: http://retujyou.com/rideramazon/
 Description: 投稿画面でASINの検索。本文中に[amazon]ASIN[/amazon]を記入でAmazon.co.jpから情報を取得。
 Author: rui_mashita
-Version: 0.0.2
+Version: 0.0.3
 Author URI: http://retujyou.com
 Special Thanks: Tomokame (http://tomokame.moo.jp/)
 Special Thanks: Keith Devens.com (http://keithdevens.com/software/phpxml)
@@ -29,6 +29,9 @@ Special Thanks: leva (http://note.openvista.jp/187/(
  LGPL で提供されている Lite.php を同梱
  PEAR::HTTP_Client が必要
  GD が必要
+
+
+
 ***************************/
 
 $rideramazon = new RiderAmazon();
@@ -47,7 +50,7 @@ class RiderAmazon{
 	//各種設定、変更して下さい。
 
 	// Amazon.co.jp アソシエイトID
-	var $AssociatesID = "";
+	var $AssociatesID = "retujyou-22";
 	// Amazon.co.jp サブスクリプションID
 	var $SubscriptionID = "1P1KJSTVRDMR2FA0ZGG2";
 	// サムネイル変換の際、リサイズ後の長辺の最大値を記入
@@ -61,9 +64,10 @@ class RiderAmazon{
 	var $email = "";
 	// アカウントのパスワード
 	var $password = "";
-	// 取得するファイルの形式
-	//（html,csv, xmlのいずれか。購入者情報を表示する場合はxmlにしておいてください）
-	var $type = "xml";
+	//詳細を表示ボタンの画像
+	var $showDetailButtonImg ="showdetail119.png";
+	//カートに入れるボタンの画像
+	var $addCartButtonImg ="gocart119.png";
 
 
 	// 以下は内部で使用する規定値です
@@ -72,7 +76,6 @@ class RiderAmazon{
 	var $Operation = "ItemLookup";
 	var $ResponseGroup = "Medium";
 	var $PageNum = 1;
-
 	// 国際化リソースドメイン
 	var $i18nDomain = 'rideramazon';	
 	
@@ -88,27 +91,25 @@ class RiderAmazon{
 		/*** Localization ***/
 		$wp_mofile = dirname(__FILE__);
 		load_plugin_textdomain($this->i18nDomain, 'wp-content/plugins/RiderAmazon' );
-
-	
-	  //wordpressショートカット[amazon]の登録 plugin_url,plugin_dirは後で変更予定
-	 	
-		$this->plugin_url = "/wp-content/plugins/RiderAmazon/";
-		$this->plugin_dir = "." . $this->plugin_url;
-		
+					
 		// プラグインパス
-		$dirs = explode('/', dirname(__FILE__));
-		$this->pluginDirUrl = get_bloginfo('wpurl').'/wp-content/plugins/'.array_pop($dirs);
+		$dirs = explode(DIRECTORY_SEPARATOR, dirname(__FILE__));
+		$this->pluginDir = '/wp-content/plugins/' . array_pop($dirs);
+		$this->pluginDirUrl = get_bloginfo('wpurl') . $this->pluginDir;
 
 		
 	}
 
 	/*
-	 * プラグイン有効化時に毎日発生するイベントを登録
+	 * プラグイン有効化時に毎日発生するイベントを、一度行ってから登録
+	 * 
 	 *
 	 *
 	 */
 	function _rideramazonRegisterHook(){
 		
+		$this->_rideramazonDailyEvent();
+
 //		wp_schedule_event(time(), 'daily', '_rideramazonDailyEvent');
 		wp_schedule_event(time(), 'hourly', '_rideramazonDailyEvent');
 
@@ -125,7 +126,7 @@ class RiderAmazon{
 		$this->getReport();
 		$this->saveReport();
 
-		$amazonDB = new AmazonDB("../","wp-content/plugins/RiderAmazon/");
+		$amazonDB = new AmazonDB($this->pluginDir,$this->pluginDirUrl);
 		$amazonDB->makeDB();
 	}
 
@@ -267,7 +268,7 @@ foreach ( $categories as $key => $value )
 			return $htmlCode;
 		}
 		
-		
+				
 		
 	}
 	
@@ -309,7 +310,7 @@ foreach ( $categories as $key => $value )
 		$this->URL = "http://www.amazon.co.jp/o/ASIN/" . $this->ASIN . "/" . $this->AssociatesID;
 		$this->URLMobile = "http://www.amazon.co.jp/gp/aw/rd.html?url=/gp/aw/d.html&lc=msn&dl=1&a=".
 			$this->ASIN.'&uid=NULLGWDOCOMO&at='. $this->AssociatesID;
-		$this->KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=retujyou-22&keywords=";
+		$this->KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=" . $this->AssociatesID . "&keywords=";
 		$this->Artist = $this->item->ItemAttributes->Artist;
 
 		// 価格を設定
@@ -400,7 +401,7 @@ foreach ( $categories as $key => $value )
 	}
 	
 	
-	/*** グラフィカル版のコードを生成 ***/
+	/*** コードを生成 ***/
 	
 	function createGraphicalCode(){
 		
@@ -427,11 +428,13 @@ foreach ( $categories as $key => $value )
 		// 購入者情報
 		$htmlCode .= '<p class="clicks">'.$this->getActionData()."</p>";
 		
+		
+		$htmlCode .= '<div class="buttons">';
 		// 詳細情報を見るボタン
-//		$htmlCode .= '<div class="buttons">'.$this->showDetailButton().'</div>';
-
+		$htmlCode .=$this->showDetailButton();
 		// カートに入れるボタン
 		$htmlCode .= $this->showAddCartButton();
+		$htmlCode .= '</div>';
 		
 		$htmlCode .= '<table >';
 // summary="'. __(" \"", "$this->i18nDomain") . $this->Title;
@@ -523,7 +526,7 @@ foreach ( $categories as $key => $value )
 	function getActionData(){
 		
 		if (true === $this->show_iteminfo){
-			$amazonDB = new AmazonDB($this->plugin_dir, $this->plugin_url);
+			$amazonDB = new AmazonDB($this->pluginDir,$this->pluginDirUrl);
 			$actionData = $amazonDB->getDB($this->ASIN);
 		}
 		
@@ -540,7 +543,7 @@ foreach ( $categories as $key => $value )
 	function showDetailButton(){
 
 		$tmpCode = '<a href="'.$this->URL.'" title="Amazon.co.jp:' .$this->Title. '" class="showdetailbutton" >';
-		$tmpCode .='<img src="'. get_bloginfo('url') . $this->plugin_url. 'images/amazon-detail.png" title="amazon.co.jpで詳細情報を見る" alt="amazon.co.jpで詳細情報を見る"/></a>';
+		$tmpCode .='<img src="'.$this->pluginDirUrl. '/images/' . $this->showDetailButtonImg .'" title="amazon.co.jpで詳細情報を見る" alt="amazon.co.jpで詳細情報を見る"/></a>';
 
 		return $tmpCode;
 	}
@@ -559,7 +562,7 @@ foreach ( $categories as $key => $value )
 		$tmpCode .= '<input name="SubscriptionId" value="'. $this->SubscriptionID .'" type="hidden" />';
 		
 		$tmpCode .= '<input name="submit.add-to-cart" type="image" ';
-		$tmpCode .= 'src="'. get_bloginfo('url') . $this->plugin_url. 'images/gocart_graphical.png" ';
+		$tmpCode .= 'src="'. $this->pluginDirUrl. '/images/' . $this->addCartButtonImg . '" ';
 		$tmpCode .= 'alt="'. __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain"). '" ';
 		$tmpCode .= 'title="'. __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain"). '" />';
 		$tmpCode .= '</form>';
@@ -632,17 +635,18 @@ foreach ( $categories as $key => $value )
 	
 	function getCover(){
 		
-		// 1フォルダにキャッシュする容量が大きくなりすぎないように細かくフォルダ分け
+		// 1フォルダにキャッシュする容量が大きくなりすぎないように3つのフォルダに分ける
 		switch (substr($this->ASIN, 0, 1)){
-			case "0": $path = "000".substr($this->ASIN, 0, 2); break;
-			case "4": $path = "00".substr($this->ASIN, 0, 3); break;
-			case "B": $path = substr($this->ASIN, 0, 5); break;
+			case "0": $path = "0"; break;
+			case "4": $path = "4"; break;
+			case "B": $path = "B"; break;
 			default : $path = "unknown"; break;
 		}
+
 		
 		// カバー画像のパス
-		$img_path = $this->plugin_dir . "cache/img/".$path."/".$this->ASIN. ".jpg";
-		$img_url = get_bloginfo('url') . $this->plugin_url . "cache/img/".$path."/".$this->ASIN. ".jpg";
+		$img_path = "." . $this->pluginDir . "/cache/img/" .$path."/".$this->ASIN. ".jpg";
+		$img_url = $this->pluginDirUrl . "/cache/img/" .$path."/".$this->ASIN. ".jpg";
 		
 		unset($source);
 		
@@ -732,7 +736,7 @@ foreach ( $categories as $key => $value )
 	function setLackedCover(){
 		
 		list($this->width_ , $this->height_) = array(160, 260);
-		$Image = '<img src="'. get_bloginfo('url') . $this->plugin_url .'images/printing.png" ';
+		$Image = '<img src="'. $this->pluginDirUrl .'/images/printing.png" ';
 		$Image .= 'width="160" height="260" class="photo" ';
 		$Image .= 'alt="'. __("Cover image is not found", "$this->i18nDomain") .'" />';
 
@@ -805,7 +809,7 @@ foreach ( $categories as $key => $value )
 		* "lifeTime"は秒単位です、ここでは3日(72時間)に設定しています
 		*/
 		$options = array(
-			"cacheDir" => $this->plugin_dir."cache/xml/",
+			"cacheDir" => "." . $this->pluginDir ."/cache/xml/",
 			"lifeTime" => 60*60*72,
 			"automaticCleaningFactor" => 0
 		);
@@ -847,24 +851,15 @@ foreach ( $categories as $key => $value )
 	
 	/*** エラーがあるかどうか調べる ***/
 	
-	
-
-
-
-
 	// レポートをゲット
 	function getReport(){
 		
-		$this->docType = "order";
+		$this->docType = "report";
 		require_once("HTTP/Client.php");
 
-		switch($this->type){
-			case "xml" : $request = "submit.download_XML"; break;
-			case "csv" : $request = "submit.download_CSV"; break;
-			case "html": $request = ""; break;
-		}
-		
-		$reportType = $this->docType . "sReport";
+		$request = "submit.download_XML";
+			
+		$reportType = "ordersReport";
 		
 		$yesterday = time() - ( 60 * 60 * 24 );
 		$host = "https://affiliate.amazon.co.jp/gp";
@@ -927,35 +922,6 @@ foreach ( $categories as $key => $value )
 		}
 		
 
-/*snoopyで出来なかったよ
-$classPath = ABSPATH.'/wp-includes/';
-include_once($classPath.'class-snoopy.php');
-$snoopy = new Snoopy();
-
-$amazonurl = "https://affiliate.amazon.co.jp/gp/associates/login/login.html/";
-// ログイン画面
-$snsns = $snoopy->fetch($amazonurl);
-$response = $snoopy->headers;
-// ログイン
-$snsns = $snoopy->submit($amzonurl, $loginQueries);
-$response = $snoopy->results;
-// レポート
-$snoopy->submit("{$host}/associates/network/reports/report.html", $reportQueries);
-$response = $snoopy->results;
-if( ! $snsns ) {
-$error = " Failed ";
-$aho = $snoopy->headers;
-echo $aho[1] ;
-print $error;
-}
-else {
-	
-			
-}
-*/
-
-		
-		
 	}
 	
 	// ゲットしたレポートを出力
@@ -968,7 +934,7 @@ else {
 		ob_end_clean();
 		
 		// 出力
-		$fn = ABSPATH."/{$this->plugin_url}{$this->docType}.{$this->type}";
+		$fn = ABSPATH."{$this->pluginDir}/report/{$this->docType}.xml";
 		file_put_contents($fn,$buffer);
 		chmod($fn,0666);
 		
@@ -1004,20 +970,18 @@ else {
 
 
 class AmazonDB{
-	
-	// コンストラクタ
-	function __construct($plugin_dir, $plugin_url){
+
+	function __construct($pluginDir,$pluginDirUrl){
 		
-		$this->plugin_dir = $plugin_dir;
-		$this->plugin_url = $plugin_url;
-		
+		$this->pluginDir = $pluginDir;
+		$this->pluginDirUrl = $pluginDirUrl;
 	}
 
 
 	function makeDB(){
 		
 		// あらかじめ作成したXMLを取得
-		$this->report = simplexml_load_file(ABSPATH.$this->plugin_url."order.xml");
+		$this->report = simplexml_load_file(ABSPATH.$this->pluginDir."/report/report.xml");
 		// DBを更新
 		$this->updateDB();
 						
@@ -1037,18 +1001,18 @@ class AmazonDB{
 
 		$sql = "SELECT orders,clicks,asin FROM " . $table_name . " WHERE asin = '". $asin ."'";
 		$request = $wpdb->get_row($sql);
- 		$dir = get_bloginfo('url') . $this->plugin_url;
+ 		
 		
 		if (!empty($request->orders)){
 			
-			$code .= '<img src="'.$dir.'images/buys.png" width="16" height="16" alt="購入数" /> '.
+			$code .= '<img src="'.$this->pluginDirUrl.'/images/buys.png" width="16" height="16" alt="購入数" /> '.
 								 	"<strong>{$request->orders}人</strong>が購入しました ";
 			
 		}
 		
 		if (!empty($request->asin)){
 			
-			$code .= '<img src="'.$dir.'images/clicks.png" width="16" height="16" alt="クリック数" /> '.
+			$code .= '<img src="'.$this->pluginDirUrl.'/images/clicks.png" width="16" height="16" alt="クリック数" /> '.
 			"サイト内で<em>{$request->clicks}人</em>がクリック";
 			
 				}
@@ -1136,10 +1100,5 @@ class AmazonDB{
  
 	
 }
-
-
-
-
-
 
 ?>

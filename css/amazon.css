@@ -6,7 +6,7 @@ amazon********************/
 .hreview{
 	margin:2em 0 ;
 	text-align:left;
-	height:290px;
+	
 	
 }
 
@@ -18,12 +18,16 @@ amazon********************/
 	
 }
 .hreview  a img{
-	
+	margin:0;
 	border:none;
 }
 .hreview a:hover img{
 	
 	border:none;
+}
+
+.hreview strong{
+	color:#ff4400;
 }
 
 .hreview dl{
@@ -32,4 +36,40 @@ amazon********************/
 	padding:1em;
 }
 
+.hreview .buttons{
+	margin:1em 0;
+	padding:0;
+	border:0;
+}
+
+.hreview a.showdetailbutton{
+	float:left;
+	margin:0;
+	padding:0;
+	border:0;
+}
+.hreview a.showdetailbutton img{
+	
+	margin:0;
+	padding:0;
+	border:0;
+}
+.hreview .showaddcartbutton{
+	
+	margin:0;
+	padding:0;
+	border:0;
+}
+
+.hreview .showaddcartbutton input{
+	margin:0;
+	padding:0;
+	border:0;
+}
+
+.hreview .showaddcartbutton p{
+	margin:0;
+	padding:0;
+	border:0;
+}
 
