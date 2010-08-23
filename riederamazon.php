@@ -4,7 +4,7 @@ Plugin Name: RiderAmazon
 Plugin URI: http://retujyou.com
 Description: 投稿画面でASINの検索。本文中に[amazon]ASIN[/amazon]を記入でAmazon.co.jpから情報を取得。
 Author: rui_mashita
-Version: 0.0.1
+Version: 0.0.2
 Author URI: http://retujyou.com
 Special Thanks: Tomokame (http://tomokame.moo.jp/)
 Special Thanks: Keith Devens.com (http://keithdevens.com/software/phpxml)
@@ -31,32 +31,36 @@ Special Thanks: leva (http://note.openvista.jp/187/(
  GD が必要
 ***************************/
 
-
-
-
-
-
 $rideramazon = new RiderAmazon();
+// Hooks
+add_shortcode('amazon', array(&$rideramazon, 'replaceCode'));
+add_action('wp_head', array(&$rideramazon, '_addWpHead'));
+add_action('admin_head', array(&$rideramazon, '_addAdminHead'));
+add_action('admin_print_scripts', array(&$rideramazon, '_admin_print_scripts'));
+add_action('dbx_post_advanced', array(&$rideramazon, '_dbxPost'));
 
-
+register_activation_hook( __FILE__,array (&$rideramazon, '_rideramazonRegisterHook'));
+register_deactivation_hook( __FILE__,array (&$rideramazon, '_rideramazonNotRegisterHook'));
 
 class RiderAmazon{
 
+	//各種設定、変更して下さい。
+
 	// Amazon.co.jp アソシエイトID
-	var $AssociatesID = "retujyou-22";
+	var $AssociatesID = "";
 	// Amazon.co.jp サブスクリプションID
 	var $SubscriptionID = "1P1KJSTVRDMR2FA0ZGG2";
 	// サムネイル変換の際、リサイズ後の長辺の最大値を記入
 	var $resize = 240;
 	// 購入数・クリック数情報を表示するか（上級者向け）
 	// （trueの場合は PEAR::HTTP_Client が必要）
-	var $show_iteminfo = false;
+	var $show_iteminfo = true;
 
 	//(Amazon.co.jp アソシエイトのアカウント情報を入力してください）
 	// アカウントのEメールアドレス
-	var $email = "*****";
+	var $email = "";
 	// アカウントのパスワード
-	var $password = "*****";
+	var $password = "";
 	// 取得するファイルの形式
 	//（html,csv, xmlのいずれか。購入者情報を表示する場合はxmlにしておいてください）
 	var $type = "xml";
@@ -81,18 +85,21 @@ class RiderAmazon{
 	 */
 	function __construct(){
 
-		$this->WpAmazon();
-		$this->WpamazonLink();
-		
-		register_activation_hook(__FILE__,array (&$this, '_rideramazonRegisterHook'));
-		add_action('_rideramazonDailyEvent', array (&$this,'_rideramazonDoThisDailyEvent'));
-		add_action('wp_head', array(&$this, '_addWpHead'));
-
 		/*** Localization ***/
 		$wp_mofile = dirname(__FILE__);
 		load_plugin_textdomain($this->i18nDomain, 'wp-content/plugins/RiderAmazon' );
 
+	
+	  //wordpressショートカット[amazon]の登録 plugin_url,plugin_dirは後で変更予定
+	 	
+		$this->plugin_url = "/wp-content/plugins/RiderAmazon/";
+		$this->plugin_dir = "." . $this->plugin_url;
+		
+		// プラグインパス
+		$dirs = explode('/', dirname(__FILE__));
+		$this->pluginDirUrl = get_bloginfo('wpurl').'/wp-content/plugins/'.array_pop($dirs);
 
+		
 	}
 
 	/*
@@ -112,7 +119,7 @@ class RiderAmazon{
 	 *
 	 *
 	 */
-	function _rideramazonDoThisDailyEvent() {
+	function _rideramazonDailyEvent() {
 		
 
 		$this->getReport();
@@ -120,6 +127,17 @@ class RiderAmazon{
 
 		$amazonDB = new AmazonDB("../","wp-content/plugins/RiderAmazon/");
 		$amazonDB->makeDB();
+	}
+
+	/*
+	 * プラグイン無効化時にイベントを消去する
+	 *
+	 *
+	 */
+	function _rideramazonNotRegisterHook(){
+		
+		wp_clear_scheduled_hook('_rideramazonDailyEvent');
+
 	}
 
 	function _addWpHead(){
@@ -130,24 +148,7 @@ class RiderAmazon{
 <?php
 	}
 
-	/**
-	 * 
-	 *
-	 * @param void
-	 * @return object クラスオブジェクト
-	 */
-	function WpAmazonLink(){
 
-		// プラグインパス
-		$dirs = explode('/', dirname(__FILE__));
-		$this->pluginDirUrl = get_bloginfo('wpurl').'/wp-content/plugins/'.array_pop($dirs);
-
-		// Hooks
-		add_action('admin_head', array(&$this, '_addAdminHead'));
-		add_action('admin_print_scripts', array(&$this, '_admin_print_scripts'));
-		add_action('dbx_post_advanced', array(&$this, '_dbxPost'));
-
-	}
 
 	// 管理画面用スクリプトの登録をする
 	function _admin_print_scripts(){
@@ -244,151 +245,6 @@ foreach ( $categories as $key => $value )
 	}
 
 
-	
-	// レポートをゲット
-	function getReport(){
-		
-		$this->docType = "order";
-		require_once("HTTP/Client.php");
-
-		switch($this->type){
-			case "xml" : $request = "submit.download_XML"; break;
-			case "csv" : $request = "submit.download_CSV"; break;
-			case "html": $request = ""; break;
-		}
-		
-		$reportType = $this->docType . "sReport";
-		
-		$yesterday = time() - ( 60 * 60 * 24 );
-		$host = "https://affiliate.amazon.co.jp/gp";
-	
-		$loginParams = array(
-			'ie' => "UTF-8",
-			'protocol' => "https",
-			'__mk_ja_JP' => urlencode("カタカナ"),
-			'path' => "/gp/associates/login/login.html",
-			'useRedirectOnSuccess' => "0",
-			'query' => "",
-			'mode' => "1",
-			'redirectProtocol' => "",
-			'pageAction' => "/gp/associates/login/login.html",
-			'disableCorpSignUp' => "",
-			'email' => $this->email,
-			'password' => $this->password,
-			'action' => "sign-in",
-		);
-		
-		$reportParams = array(
-			'__mk_ja_JP' => urlencode("カタカナ"),
-			'tag' => "",
-			'reportType' => $reportType,
-			'preSelectedPeriod' => "yesterday",
-			'periodType' => "exact",
-			'startYear' => "2003",
-			'startMonth' => "0",
-			'startDay' => "1",
-			'endYear' => date("Y", $yesterday),
-			'endMonth' => (string)(date("m", $yesterday) - 1),
-			'endDay' => date("d", $yesterday),
-			$request => "",
-		);
-		
-		$loginQueries = http_build_query($loginParams);
-		$reportQueries = http_build_query($reportParams);
-		
-		$client = new HTTP_Client();
-
-		// ログイン画面
-		$client->get("{$host}/associates/login/login.html");
-		$response = $client->currentResponse();
-		// ログイン
-		$client->post("{$host}/flex/sign-in/select.html", $loginQueries, true);
-		$response = $client->currentResponse();
-		// レポート
-		$client->post("{$host}/associates/network/reports/report.html", $reportQueries, true);
-		$response = $client->currentResponse();
-		
-		if (!empty($response['body'])){
-		  
-			$this->report = $response['body'];
-			return true;
-		  
-		} else{
-		  
-			return false;
-		  
-		}
-		
-
-/*snoopyで出来なかったよ
-$classPath = ABSPATH.'/wp-includes/';
-include_once($classPath.'class-snoopy.php');
-$snoopy = new Snoopy();
-
-$amazonurl = "https://affiliate.amazon.co.jp/gp/associates/login/login.html/";
-// ログイン画面
-$snsns = $snoopy->fetch($amazonurl);
-$response = $snoopy->headers;
-// ログイン
-$snsns = $snoopy->submit($amzonurl, $loginQueries);
-$response = $snoopy->results;
-// レポート
-$snoopy->submit("{$host}/associates/network/reports/report.html", $reportQueries);
-$response = $snoopy->results;
-if( ! $snsns ) {
-$error = " Failed ";
-$aho = $snoopy->headers;
-echo $aho[1] ;
-print $error;
-}
-else {
-	
-			
-}
-*/
-
-		
-		
-	}
-	
-	// ゲットしたレポートを出力
-	function saveReport(){
-		
-		// レポートを捕捉
-		ob_start();
-		print_r($this->report);
-		$buffer = ob_get_contents();
-		ob_end_clean();
-		
-		// 出力
-		$fn = ABSPATH."/{$this->plugin_url}{$this->docType}.{$this->type}";
-		file_put_contents($fn,$buffer);
-		# chmod("./{$fn}", 0666);
-		
-		return true;
-		
-	}
-	
-
-
-
-	/**
-	 * wordpressショートカット[amazon]の登録 plugin_url,plugin_dirは後で変更予定
-	 *
-	 * @param void
-	 * @return 
-	 */
-	
-	function WpAmazon(){
-	
-		$this->plugin_url = "/wp-content/plugins/RiderAmazon/";
-		$this->plugin_dir = "." . $this->plugin_url;
-		
-		add_shortcode('amazon', array(&$this, 'replaceCode'));
-			
-		
-	}
-	
 
 	/**
 	 * ASINをhtmlに置換する
@@ -398,18 +254,20 @@ else {
 	 */
 	
 	function replaceCode($atts, $asinCode=''){
-		
-		if( is_single() ){
-	
+			
+		if( !($asinCode=='') ){
 			$this->asin_ = $asinCode ;
 
+			
 			// 前準備
 			$this->getData();
 			// HTMLコードを生成
 			$htmlCode = $this->makeCode();
+	
+			return $htmlCode;
 		}
-
-		return $htmlCode;
+		
+		
 		
 	}
 	
@@ -451,7 +309,9 @@ else {
 		$this->URL = "http://www.amazon.co.jp/o/ASIN/" . $this->ASIN . "/" . $this->AssociatesID;
 		$this->URLMobile = "http://www.amazon.co.jp/gp/aw/rd.html?url=/gp/aw/d.html&lc=msn&dl=1&a=".
 			$this->ASIN.'&uid=NULLGWDOCOMO&at='. $this->AssociatesID;
-		
+		$this->KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=retujyou-22&keywords=";
+		$this->Artist = $this->item->ItemAttributes->Artist;
+
 		// 価格を設定
 		if ((empty($this->Price)) && (!empty($this->CutPrice))){
 			$this->Price = $this->CutPrice;
@@ -464,11 +324,11 @@ else {
 		if ($this->Type == "Book"){
 			$this->str_creator = __("Author", "$this->i18nDomain");
 			$this->pubDate = split("-", $this->item->ItemAttributes->PublicationDate);
-			$this->KeywordURL = "http://tech.openvista.jp/amazon/?index=Books&keyword=";
+			
 		} else{
 			$this->str_creator = __("Player", "$this->i18nDomain");
 			$this->pubDate = split("-", $this->item->ItemAttributes->ReleaseDate);
-			$this->KeywordURL = "http://tech.openvista.jp/amazon/?index=Blended&keyword=";
+			
 		}
 		
 		list($this->pubDate["year"], $this->pubDate["month"], $this->pubDate["day"]) = $this->pubDate;
@@ -567,8 +427,11 @@ else {
 		// 購入者情報
 		$htmlCode .= '<p class="clicks">'.$this->getActionData()."</p>";
 		
+		// 詳細情報を見るボタン
+//		$htmlCode .= '<div class="buttons">'.$this->showDetailButton().'</div>';
+
 		// カートに入れるボタン
-		$htmlCode .= "<p>".$this->showAddCartButton()."</p>";
+		$htmlCode .= $this->showAddCartButton();
 		
 		$htmlCode .= '<table >';
 // summary="'. __(" \"", "$this->i18nDomain") . $this->Title;
@@ -582,6 +445,13 @@ else {
 			$htmlCode .= "<th>". $this->str_creator ."</th>";
 			$htmlCode .= "<td>";
 			$htmlCode .= $this->getCreators();
+			$htmlCode .= "</td>";
+			$htmlCode .= "</tr>";
+		}//製作者情報がなければ
+		elseif(!empty($this->Artist)){
+			$htmlCode .= "<tr>";
+			$htmlCode .= "<th>Artist</th>";
+			$htmlCode .= '<td><a href="' . $this->KeywordURL . urlencode($this->Artist) .'">'. $this->Artist .'</a></td>';
 			$htmlCode .= "</td>";
 			$htmlCode .= "</tr>";
 		}
@@ -628,7 +498,7 @@ else {
 		}
 		
 		$htmlCode .= "</tbody>";
-		$htmlCode .= "</table>";
+		$htmlCode .= '</table><br clear="both" />';
 		
 		$htmlCode .= "</div>";
 //		$htmlCode .= $this->getCodeGenerator();
@@ -636,7 +506,7 @@ else {
 		$htmlCode .= "</div></div>";
 		
 		if ($this->type_ == "clear"){
-			$htmlCode .= '<br clear="both">';
+			$htmlCode .= '<br clear="both" />';
 		}
 		
 		return $htmlCode;
@@ -661,11 +531,28 @@ else {
 		
 	}
 	
+	/**
+	 *詳細を見るボタン
+	 *
+	 *
+	 *@return $htmlCode
+	 */
+	function showDetailButton(){
+
+		$tmpCode = '<a href="'.$this->URL.'" title="Amazon.co.jp:' .$this->Title. '" class="showdetailbutton" >';
+		$tmpCode .='<img src="'. get_bloginfo('url') . $this->plugin_url. 'images/amazon-detail.png" title="amazon.co.jpで詳細情報を見る" alt="amazon.co.jpで詳細情報を見る"/></a>';
+
+		return $tmpCode;
+	}
+
 	/*** カートに入れるボタンを表示するコードを返す ***/
 	
 	function showAddCartButton(){
 		
-		$tmpCode = '<form action="http://www.amazon.co.jp/gp/aws/cart/add.html" method="post"><p>';
+
+
+
+		$tmpCode = '<form class="showaddcartbutton" action="http://www.amazon.co.jp/gp/aws/cart/add.html" method="post">';
 		$tmpCode .= '<input name="ASIN.1" value="'. $this->ASIN .'" type="hidden" />';
 		$tmpCode .= '<input name="Quantity.1" value="1" type="hidden" />';
 		$tmpCode .= '<input name="AssociateTag" value="'. $this->AssociatesID .'" type="hidden" />';
@@ -675,7 +562,7 @@ else {
 		$tmpCode .= 'src="'. get_bloginfo('url') . $this->plugin_url. 'images/gocart_graphical.png" ';
 		$tmpCode .= 'alt="'. __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain"). '" ';
 		$tmpCode .= 'title="'. __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain"). '" />';
-		$tmpCode .= '</p></form>';
+		$tmpCode .= '</form>';
 		
 		return $tmpCode;
 		
@@ -711,9 +598,11 @@ else {
 		if (isset($this->Creator[1])){
 
 			for ($q=0; $q<5; $q++){
-				$tmpCode .= '<a href="' . $this->KeywordURL . urlencode($this->Creator[$q]) .'">';
-				$tmpCode .= $this->Creator[$q]. "</a>";
-				$tmpCode .= (($q != 4) ? "<br />": "");				
+				if (isset($this->Creator[$q])){
+					$tmpCode .= '<a href="' . $this->KeywordURL . urlencode($this->Creator[$q]) .'">';
+					$tmpCode .= $this->Creator[$q]. "</a>";
+					$tmpCode .= "<br />";
+				}			
 			}
 		
 		} else{
@@ -959,6 +848,135 @@ else {
 	/*** エラーがあるかどうか調べる ***/
 	
 	
+
+
+
+
+	// レポートをゲット
+	function getReport(){
+		
+		$this->docType = "order";
+		require_once("HTTP/Client.php");
+
+		switch($this->type){
+			case "xml" : $request = "submit.download_XML"; break;
+			case "csv" : $request = "submit.download_CSV"; break;
+			case "html": $request = ""; break;
+		}
+		
+		$reportType = $this->docType . "sReport";
+		
+		$yesterday = time() - ( 60 * 60 * 24 );
+		$host = "https://affiliate.amazon.co.jp/gp";
+	
+		$loginParams = array(
+			'ie' => "UTF-8",
+			'protocol' => "https",
+			'__mk_ja_JP' => urlencode("カタカナ"),
+			'path' => "/gp/associates/login/login.html",
+			'useRedirectOnSuccess' => "0",
+			'query' => "",
+			'mode' => "1",
+			'redirectProtocol' => "",
+			'pageAction' => "/gp/associates/login/login.html",
+			'disableCorpSignUp' => "",
+			'email' => $this->email,
+			'password' => $this->password,
+			'action' => "sign-in",
+		);
+		
+		$reportParams = array(
+			'__mk_ja_JP' => urlencode("カタカナ"),
+			'tag' => "",
+			'reportType' => $reportType,
+			'preSelectedPeriod' => "yesterday",
+			'periodType' => "exact",
+			'startYear' => "2003",
+			'startMonth' => "0",
+			'startDay' => "1",
+			'endYear' => date("Y", $yesterday),
+			'endMonth' => (string)(date("m", $yesterday) - 1),
+			'endDay' => date("d", $yesterday),
+			$request => "",
+		);
+		
+		$loginQueries = http_build_query($loginParams);
+		$reportQueries = http_build_query($reportParams);
+		
+		$client = new HTTP_Client();
+
+		// ログイン画面
+		$client->get("{$host}/associates/login/login.html");
+		$response = $client->currentResponse();
+		// ログイン
+		$client->post("{$host}/flex/sign-in/select.html", $loginQueries, true);
+		$response = $client->currentResponse();
+		// レポート
+		$client->post("{$host}/associates/network/reports/report.html", $reportQueries, true);
+		$response = $client->currentResponse();
+		
+		if (!empty($response['body'])){
+		  
+			$this->report = $response['body'];
+			return true;
+		  
+		} else{
+		  
+			return false;
+		  
+		}
+		
+
+/*snoopyで出来なかったよ
+$classPath = ABSPATH.'/wp-includes/';
+include_once($classPath.'class-snoopy.php');
+$snoopy = new Snoopy();
+
+$amazonurl = "https://affiliate.amazon.co.jp/gp/associates/login/login.html/";
+// ログイン画面
+$snsns = $snoopy->fetch($amazonurl);
+$response = $snoopy->headers;
+// ログイン
+$snsns = $snoopy->submit($amzonurl, $loginQueries);
+$response = $snoopy->results;
+// レポート
+$snoopy->submit("{$host}/associates/network/reports/report.html", $reportQueries);
+$response = $snoopy->results;
+if( ! $snsns ) {
+$error = " Failed ";
+$aho = $snoopy->headers;
+echo $aho[1] ;
+print $error;
+}
+else {
+	
+			
+}
+*/
+
+		
+		
+	}
+	
+	// ゲットしたレポートを出力
+	function saveReport(){
+		
+		// レポートを捕捉
+		ob_start();
+		print_r($this->report);
+		$buffer = ob_get_contents();
+		ob_end_clean();
+		
+		// 出力
+		$fn = ABSPATH."/{$this->plugin_url}{$this->docType}.{$this->type}";
+		file_put_contents($fn,$buffer);
+		chmod($fn,0666);
+		
+		return true;
+		
+	}
+
+
 	function isError(){
 		
 		if (count($this->errors) > 0){
@@ -980,6 +998,7 @@ else {
 		}
 		
 	}
+
 
 }
 
@@ -1016,7 +1035,7 @@ class AmazonDB{
 		global $wpdb;
 		$table_name = $wpdb->prefix . "amazonreport";
 
-		$sql = "SELECT * FROM " . $table_name . " WHERE asin = '". $asin ."'";
+		$sql = "SELECT orders,clicks,asin FROM " . $table_name . " WHERE asin = '". $asin ."'";
 		$request = $wpdb->get_row($sql);
  		$dir = get_bloginfo('url') . $this->plugin_url;
 		
