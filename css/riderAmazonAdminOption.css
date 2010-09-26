@@ -1,0 +1,19 @@
+@charset "utf-8";
+
+/* riderAmazon Option Page CSS */
+
+#riderAmazonAdminOptionPage fieldset{
+  border:1px solid #DFDFDF;
+  margin:1em 0;
+  padding:1em;
+
+}
+
+#riderAmazonAdminOptionPage legend{
+  font-weight: bold;
+  padding: 0 1em;
+}
+
+#riderAmazonAdminOptionUpdated{
+  display: none;
+}

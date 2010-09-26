@@ -1,16 +1,13 @@
 // riderAmaozn
-// 投稿画面 Amazon.co.jp 検索 JavaScript
+// 投稿画面 Amazon.co.jp 検索 
 
 var RiderAmazon = function() {
     this.initialize.apply(this, arguments);
-}
-
-
+};
 
 RiderAmazon.prototype = {
     // メンバ変数
     version : 20090903,
-
 
     // コンストラクタ
     initialize : function() {
@@ -82,7 +79,7 @@ RiderAmazon.prototype = {
                     jQuery("#riderAmazon_totalPages").attr("value", amazonResult.totalPages);
                   
                     jQuery("#riderAmazon_page").html(page);
-                    jQuery("#riderAmazon_result .error").fadeIn("slow")
+                    jQuery("#riderAmazon_result .error").fadeIn("slow");
 
                 }
             });
@@ -101,14 +98,14 @@ RiderAmazon.prototype = {
                 break;
             case 'next':
                 if ( currentPage == totalPage ){
-                    changedPage = 1
+                    changedPage = 1;
                 }else{
                     changedPage = currentPage + 1;
                 }
                 break;
             case 'previous':
                 if (currentPage == 1 ){
-                    changedPage = 1
+                    changedPage = 1;
                 }else{
                     changedPage = currentPage - 1;
                     break;
@@ -121,18 +118,13 @@ RiderAmazon.prototype = {
     },
 
 
-    fadeInMessage: function(){
-        jQuery("#riderAmazonAdminOptionUpdated").fadeIn("slow")
-    },
-
-key: function(event){
+  key: function(event){
         // Enter key が 押されたら
         if(13==event.keyCode){
             event.preventDefault();
             this.selectSearchType('first');
         }
     }
-
 
 };
 
@@ -143,6 +135,7 @@ var rideramazon = new RiderAmazon();
 jQuery(document).ready(function(){
     //$(function(){
     var rideramazon = new RiderAmazon();
+   // rideramazon.riderAjax();
 
     jQuery("#riderAmazon_search").click(function(){
         rideramazon.selectSearchType('first');
@@ -152,9 +145,6 @@ jQuery(document).ready(function(){
     });
     jQuery("#riderAmazon_toPreviousPage").click(function(){
         rideramazon.selectSearchType('previous');
-    });
-    jQuery("#riderAmazonAdminOptionPage #saveOption").click(function(){
-        rideramazon.fadeInMessage();
     });
      jQuery("#riderAmazon_keyword").keydown(function(event){
         rideramazon.key(event);

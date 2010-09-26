@@ -1,6 +1,5 @@
 @charset "utf-8";
 
-/* riderAmazon Option Page CSS */
 
 #riderAmazon_result{
     padding:0.5em 0 0;
@@ -73,23 +72,4 @@
 #riderAmazon_result td.image{
     margin: 0 auto ;
 
-}
-
-
-#riderAmazonAdminOptionPage fieldset{
-  border:1px solid #DFDFDF;
-margin:1em 0;
-padding:1em;
-
-}
-
-#riderAmazonAdminOptionPage legend{
-
-padding: 0 1em;
-
-
-}
-
-#riderAmazonAdminOptionUpdated{
-  
 }

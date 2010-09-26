@@ -1,200 +1,474 @@
 <?php
 /*
-Plugin Name: RiderAmazon
-Plugin URI: http://retujyou.com/rideramazon/
-Description: 投稿画面でASINの検索。本文中に[amazon]ASIN[/amazon]を記入でAmazon.co.jpから情報を取得。
-Author: rui_mashita
-Version: 0.1.1
-Author URI: http://retujyou.com
-Special Thanks: Tomokame (http://tomokame.moo.jp/)
-Special Thanks: Keith Devens.com (http://keithdevens.com/software/phpxml)
-Special Thanks: websitepublisher.net (http://www.websitepublisher.net/article/aws-php/)
-Special Thanks: hiromasa.zone :o) (http://hiromasa.zone.ne.jp/)
-Special Thanks: PEAR :: Package :: Cache_Lite (http://pear.php.net/package/Cache_Lite)
-Special Thanks: よしとも (http://wppluginsj.sourceforge.jp/amazonlink/)
-Special Thanks: leva (http://note.openvista.jp/187/(
+  Plugin Name: RiderAmazon
+  Plugin URI: http://retujyou.com/rideramazon/
+  Description: 投稿画面でASINの検索。本文中に[amazon]ASIN[/amazon]を記入でAmazon.co.jpから情報を取得。
+  Author: rui_mashita
+  Version: 0.1.1
+  Author URI: http://retujyou.com
+  Special Thanks: Tomokame (http://tomokame.moo.jp/)
+  Special Thanks: Keith Devens.com (http://keithdevens.com/software/phpxml)
+  Special Thanks: websitepublisher.net (http://www.websitepublisher.net/article/aws-php/)
+  Special Thanks: hiromasa.zone :o) (http://hiromasa.zone.ne.jp/)
+  Special Thanks: PEAR :: Package :: Cache_Lite (http://pear.php.net/package/Cache_Lite)
+  Special Thanks: よしとも (http://wppluginsj.sourceforge.jp/amazonlink/)
+  Special Thanks: leva (http://note.openvista.jp/187/(
 */
 
-/********** 使い方 *********
-1.プラグインディレクトリにアップロード
-2.管理画面で有効化
-3.投稿画面で、ASINの検索が出来る。
-4.本文中に[amazon]ASIN[/amazon]を記入。
+/* * ******** 使い方 *********
+  1.プラグインディレクトリにアップロード
+  2.管理画面で有効化
+  3.投稿画面で、ASINの検索が出来る。
+  4.本文中に[amazon]ASIN[/amazon]を記入。
 
-***************************/
+ * ************************* */
 
-/********** Notes *********
- ECS4.0 に対応しています
- PHP5 で動作します
- LGPL で提供されている Lite.php を同梱
- PEAR::HTTP_Client が必要
- GD が必要
-***************************/
+/* * ******** Notes *********
+  ECS4.0 に対応しています
+  PHP5 で動作します
+  LGPL で提供されている Lite.php を同梱
+  PEAR::HTTP_Client が必要
+  GD が必要
+ * ************************* */
 
 /*
-Copyright (C) 2008  rui mashita
+  Copyright (C) 2008  rui mashita
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 
 
 
-if ( !class_exists( 'RiderAmazon' ) ) {
+if (!class_exists('RiderAmazon')) {
+
     class RiderAmazon {
 
-    //各種設定、変更して下さい。
-
-
-
-    // サムネイル変換の際、リサイズ後の長辺の最大値を記入
-        var $resize = 240;
-
-
+        // サムネイル変換の際、リサイズ後の長辺の最大値を記入
+        var $resize = 200;
         //詳細を表示ボタンの画像
-        var $showDetailButtonImg ="showdetail119.png";
+        var $showDetailButtonImg = "showdetail119.png";
         //カートに入れるボタンの画像
-        var $addCartButtonImg ="gocart119.png";
-
+        var $addCartButtonImg = "gocart119.png";
         // 国際化リソースドメイン
-        var $i18nDomain = 'riderAmazonDomain';
-
+        var $i18nDomain = 'riderAmazon';
         // RiderAmazon
         var $pluginDirName;
         // /path/to/RiderAmazon
-        var $pluginDir ;
+        var $pluginDir;
         // http://sample.com/path/to/RiderAmazon
-        var $pluginDirUrl ;
-
+        var $pluginDirUrl;
         // wp_opions table option_name column
-        var $optionName = "riderAmazonOption" ;
-        // optionの値
-        //        array(
-        //        'associateTag' => ,
-        //        'accessKeyId' => ,
-        //        'secretAccessKey'=> ,
-        //        'associateEmail'=> ,
-        //        'associatePassword'=>
-        //        )
-        var $options ;
+        var $optionName = "riderAmazonOption";
+        var $options;
         var $defaultOptions = array(
-        'associateTag' => 'retujyou-22',
-        'accessKeyId' => '',
-        'secretAccessKey'=> '',
-        'associateEmail'=> '',
-        'associatePassword'=> ''
+                'associateTag' => 'retujyou-22',
+                'accessKeyId' => '',
+                'secretAccessKey' => '',
+                'associateEmail' => '',
+                'associatePassword' => '',
+                'cache' => ''
         );
 
-	/*
-	 * コンストラクタ
-	 *
-	 * @param void
-	 *
-	 */
+        /*
+         * コンストラクタ
+         *
+         * @param void
+         *
+        */
         function __construct() {
 
-		/*** Localization ***/
-            $wp_mofile = dirname(__FILE__);
-            load_plugin_textdomain($this->i18nDomain, 'wp-content/plugins/RiderAmazon' );
+// plugin path
+            $dirs = explode(DIRECTORY_SEPARATOR, dirname(__FILE__));
+// Rider Amaozn
+            $this->pluginDirName = array_pop($dirs);
+// /path/to/RiderAmazon
+            $this->pluginDir = WP_PLUGIN_DIR . '/' . $this->pluginDirName;
+// http://sample.com/path/to/RiderAmazon
+            $this->pluginDirUrl = WP_PLUGIN_URL . '/' . $this->pluginDirName;
 
-            // DB から $this->optinos に ロード
+ //Localization
+            $locale = get_locale();
+            load_plugin_textdomain($this->i18nDomain, $this->pluginDir. '/locales/', $this->pluginDirName. '/locales/' );
+
+//load_plugin_textdomain($this->i18nDomain, 'wp-content/plugins/RiderAmazon' );
+// load $this->optinos from DB
             $this->_loadOptions();
 
-            // Hooks
+add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_addPluginActionLinks'));
+// admin option hooks
+
+            add_action('admin_menu', array(&$this, '_addAdminOptionPage'));
+
+// admin post/page hooks
+            add_action('admin_menu', array(&$this, '_addCustomBox'));
+//   add_action('admin_print_styles', array(&$this, '_addAdminPrintStyles'));
+            add_action('admin_print_scripts', array(&$this, '_addAdminPrintScripts'));
+            add_action('wp_ajax_riderAmazonAjax', array(&$this, '_riderAmazonAjax'));
+
+
+// post hooks
             add_shortcode('amazon', array(&$this, 'replaceCode'));
             add_action('wp_head', array(&$this, '_addWpHead'));
-            add_action('admin_head', array(&$this, '_addAdminHead'));
-            add_action('admin_print_scripts', array(&$this, '_adminPrintScripts'));
-            add_action('admin_menu', array(&$this, '_addCustomBox'));
-            // ajax hook
-            add_action('wp_ajax_riderAmazonAjax' ,array (&$this,'_riderAmazonAjax') );
-            // 管理オプションページ hook
-            add_action('admin_menu', array(&$this, '_addAdminOptionPage'));
-            // 管理オプションページ エラー表示
-            add_action('admin_notices', array (&$this,"_addAdminNotices"));
-
-            register_activation_hook( __FILE__,array (&$this, '_rideramazonRegisterHook'));
-            register_deactivation_hook( __FILE__,array (&$this, '_rideramazonNotRegisterHook'));
 
 
-            // プラグインパス
-            $dirs = explode(DIRECTORY_SEPARATOR, dirname(__FILE__));
-            // Rider Amaozn
-            $this->pluginDirName = array_pop($dirs);
-            // /path/to/RiderAmazon
-            $this->pluginDir = WP_PLUGIN_DIR .'/'.  $this->pluginDirName;
-            // http://sample.com/path/to/RiderAmazon
-            $this->pluginDirUrl = WP_PLUGIN_URL .'/'.  $this->pluginDirName;
+            register_activation_hook(__FILE__, array(&$this, '_rideramazonRegisterHook'));
+            register_deactivation_hook(__FILE__, array(&$this, '_rideramazonNotRegisterHook'));
 
 
+            echo wp_get_schedule('_rideramazonDailyEvent');
         }
 
 
 
-	/*
-	 * プラグイン有効化時に毎日発生するイベントを、一度行ってから登録
-	 * 
-	 *
-	 *
-	 */
-        function _rideramazonRegisterHook() {
 
-            $this->_rideramazonDailyEvent();
-            wp_schedule_event(time(), 'daily', '_rideramazonDailyEvent');
+        /**
+         * Retrieves the plugin's options from the database.
+         *
+         *
+         * @return boolean
+         */
+        function _loadOptions() {
+            if (false === ( $options = get_option($this->optionName) )) {
+                $this->options = $this->defaultOptions;
+                return false;
+            } else {
+                $this->options = $options;
+                return true;
+            }
+            return false;
+        }
 
-        //  テスト用 毎時
-        //  wp_schedule_event(time(), 'hourly', '_rideramazonDailyEvent');
+        /**
+         * delete the plugin's options from the database.
+         *
+         */
+        function _deleteOptions() {
+            return delete_option($this->optionName);
+        }
+
+        /**
+         * Save the options value to the WordPress database
+         *
+         * @return boolean true if the save was successful.
+         */
+        function _saveOptions() {
+            return update_option($this->optionName, $this->options);
+        }
+
+        /**
+         * get option
+         *
+         * @param string $key
+         * @return mixed
+         *
+         */
+        function _getOption($key) {
+            return $this->options[$key];
+        }
+
+        /**
+         * set option
+         *
+         * @param string $key
+         * @param mixed $value
+         * @return void
+         *
+         */
+        function _setOption($key, $value) {
+            $this->options[$key] = $value;
+        }
+
+        function _addPluginActionLinks($actions) {
+            $link = '<a href="'.get_bloginfo( 'wpurl' ).'/wp-admin/options-general.php?page='.basename(__FILE__).'" >'. __(Settings) .'</a>';
+            array_unshift($actions, $link);
+            return $actions;
+        }
+
+        /**
+         * Add admin option page
+         *
+         * @return void
+         */
+        function _addAdminOptionPage() {
+
+            $optionPage = add_options_page(
+                    __('Rider Amazon Option', $this->i18nDomain),
+                    __('RiderAmazon', $this->i18nDomain),
+                    8,
+                    basename(__FILE__),
+                    array(&$this, '_adminOptionPage')
+            );
+
+            add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPrintStyles'));
+            add_action('admin_print_scripts-' . $optionPage, array(&$this, '_addAdminOptionPrintScripts'));
+            add_action('admin_notices', array(&$this, "_addAdminNotices"));
+        }
+
+        /**
+         * 管理画面メニューのオプションページ
+         *
+         * @return void
+         */
+        function _adminOptionPage() {
+            ?>
+<div class="wrap" id="riderAmazonAdminOptionPage">
+    <h2><?php _e('Rider Amazon Options', $this->i18nDomain); ?></h2>
+
+    <div style="width: 100%;" class="postbox-container">
+        <div class="metabox-holder" >
+
+            <div class="meta-box-sortables ui-sortable">
+
+                <div class="postbox" id="present">
+                    <div title="Click to toggle" class="handlediv"><br></div>
+                    <h3 class="hndle"><span><?php _e('Present for Plugin Editor', $this->i18nDomain); ?></span></h3>
+                    <div class="inside">
+                        <div><label><?php _e('Let the monitor out of your sight ,and close your eyes for a moment. If you can imagine the real existence of the plugin editor, two things you can do right now.', $this->i18nDomain); ?></label>
+                        </div>
+
+                        <div class="alignleft inside" style="width: 45%;">
+                            <p>1. <?php _e('you can send present for me.', $this->i18nDomain); ?> </p>
+                            <div class="inside">
+                                <a href="<?php _e('http://amzn.com/w/37VZ4S64TVJ87', $this->i18nDomain); ?>">
+                                    <img src="<?php echo $this->pluginDirUrl . '/images/amazon.gif'; ?>" width="122" title="amazon.co.jp wish list" />
+                                </a>
+                            </div>
+                        </div>
+                        <div class="alignright inside" style="width: 45%;">
+                            <p>2. <?php _e('you can donate to me.', $this->i18nDomain); ?></p>
+                            <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
+                                <input type="hidden" name="cmd" value="_donations" />
+                                <input type="hidden" name="business" value="BAT75LYEU6B3L" />
+                                <input type="hidden" name="item_name" value="All in One SEO Multibyte Descriptions" />
+                                <input type="hidden" name="item_number" value="1" />
+                                <input type="hidden" name="item_number" value="1" />
+                                <input type="hidden" name="currency_code" value="<?php _e('USD', $this->i18nDomain); ?>" />
+                                <input type="hidden" name="country" value="<?php _e('US', $this->i18nDomain); ?>" />
+                                <input type="hidden" name="first_name" value="<?php _e('Thank you', $this->i18nDomain); ?>" />
+                                <input type="hidden" name="last_name" value="<?php _e('for donating', $this->i18nDomain); ?>" />
+                                <input type="hidden" name="lc" value="<?php _e('US', $this->i18nDomain); ?>JP" />
+                                <input type="hidden" name="charset" value="UTF-8" />
+                                <input
+                                    type="image"
+                                    src="<?php _e('https://www.paypal.com/en_US/i/btn/btn_donateCC_LG.gif', $this->i18nDomain); ?>"
+                                    border="0"
+                                    name="submit"
+                                    alt="PayPal"
+                                    />
+                                <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
+                            </form>
+                        </div>
+                        <div class="clear"></div>
+                    </div>
+                </div>
+
+                <form action="<?php echo $_SERVER['REQUEST_URI']; ?>" method="post">
+                    <div class="postbox" id="setting">
+                        <div title="Click to toggle" class="handlediv"><br></div>
+                        <h3 class="hndle"><span><?php _e('Required Setting', $this->i18nDomain); ?></span></h3>
+
+                        <div class="inside">
+
+
+                            <fieldset>
+                                <legend><?php _e('Product Advertising API Setting', $this->i18nDomain); ?></legend>
+                                <p>
+                                                <?php _e('If you dont set this option , you cant display item in post view, cant use ItemSearch in post custom box.', $this->i18nDomain); ?><br />
+                                                <?php _e('Reference：<a href="https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html">Amazon Product Advertising API</a>', $this->i18nDomain); ?>
+                                </p>
+
+                                <table class="form-table">
+
+                                    <tr>
+                                        <th><label for="accessKeyId"><?php _e('Access Key ID', $this->i18nDomain); ?></label></th>
+                                        <td><input type="text" name="accessKeyId" id="accessKeyId" value="<?php echo htmlspecialchars($this->_getOption('accessKeyId')); ?>" />
+                                            <span class="description"><?php _e('Access Key ID.', $this->i18nDomain); ?></span>
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <th><label for="secretAccessKey"><?php _e('secretAccessKey', $this->i18nDomain); ?></label></th>
+                                        <td><input type="text" name="secretAccessKey" id="secretAccessKey" value="<?php echo htmlspecialchars($this->_getOption('secretAccessKey')); ?>" />
+                                            <span class="description"><?php _e('secretAccessKey.', $this->i18nDomain); ?></span>
+                                        </td>
+                                    </tr>
+
+                                </table>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend><?php _e('Amazon Associates Setting', $this->i18nDomain); ?></legend>
+                                <p>
+                                                <?php _e('<a href="https://affiliate-program.amazon.com/" >Amazon.com Associates</a>', $this->i18nDomain); ?>
+                                </p>
+
+                                <table class="form-table">
+                                    <tr>
+                                        <th><label for="associateTag"><?php _e('AssociateTag', $this->i18nDomain); ?></label></th>
+                                        <td><input type="text" name="associateTag" id="associateTag" value="<?php echo htmlspecialchars($this->_getOption('associateTag')); ?>" />
+                                            <span class="description"><?php _e('Amazon Associates Tracking ID.', $this->i18nDomain); ?></span>
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <th><label for="associateEmail"><?php _e('Associate Email', $this->i18nDomain); ?></label></th>
+                                        <td><input type="text" name="associateEmail" id="associateEmail" value="<?php echo htmlspecialchars($this->_getOption('associateEmail')); ?>" />
+                                            <span class="description"><?php _e('Amazon Associates Login Email.', $this->i18nDomain); ?></span>
+                                        </td>
+                                    </tr>
+
+
+                                    <tr>
+                                        <th><label for="associatePassword"><?php _e('Associate Password', $this->i18nDomain); ?></label></th>
+                                        <td><input type="password" name="associatePassword" id="associatePassword" value="<?php echo htmlspecialchars($this->_getOption('associatePassword')); ?>" />
+                                            <span class="description"><?php _e('Amazon Associates Login Password.', $this->i18nDomain); ?></span>
+                                        </td>
+                                    </tr>
+
+                                </table>
+                            </fieldset>
+
+                            <div class="alignright">
+                                <input class="button-primary" id="saveOption" type="submit" value="<?php _e('Update Options &raquo;', $this->i18nDomain); ?>" />
+                            </div>
+                            <input type="hidden" name="optionMethod" value="saveOption" />
+
+
+                            <div class="clear"></div>
+                        </div>
+                    </div>
+
+                    <div class="postbox" id="setting">
+                        <div title="Click to toggle" class="handlediv"><br></div>
+                        <h3 class="hndle"><span><?php _e('Custom Setting', $this->i18nDomain); ?></span></h3>
+
+                        <div class="inside">
+
+
+                            <fieldset>
+                                <legend><?php _e('Cache Setting', $this->i18nDomain); ?></legend>
+
+                                <table class="form-table">
+
+                                    <tr>
+                                        <th><label for="cache"><?php _e('cache', $this->i18nDomain); ?></label></th>
+                                        <td><input type="checkbox" name="cache" id="cache" value="1" <?php checked('1', $this->_getOption('cache')); ?> />
+                                            <span class="description"><?php _e('Image cache.', $this->i18nDomain); ?></span>
+                                        </td>
+                                    </tr>
+
+                                </table>
+                            </fieldset>
+
+                            <div class="alignright">
+                                <input class="button-primary" id="saveOption" type="submit" value="<?php _e('Update Options &raquo;', $this->i18nDomain); ?>" />
+                            </div>
+                            <input type="hidden" name="optionMethod" value="saveOption" />
+
+
+                            <div class="clear"></div>
+                        </div>
+                    </div>
+                </form>
+
+                <form action="<?php echo $_SERVER['REQUEST_URI']; ?>" method="post">
+                    <p class="submit">
+                        <input class="button" id="resetOption" type="submit" value="<?php _e('Reset Options &raquo;', $this->i18nDomain); ?>" />
+                    </p>
+                    <input type="hidden" name="optionMethod" value="resetOption" />
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="clear"></div>
+</div>
+
+            <?php
 
         }
 
-	/*
-	 * 毎日発生するイベント
-	 *
-	 *
-	 */
-        function _rideramazonDailyEvent() {
-
-            $this->getReport();
-            $this->saveReport();
-            $this->makeDB();
-
+        function _addAdminOptionPrintStyles() {
+            wp_enqueue_style('riderAmazonAdminOption', $this->pluginDirUrl . '/css/riderAmazonAdminOption.css');
+            wp_enqueue_style('dashboard');
         }
 
-	/*
-	 * プラグイン無効化時にイベントを消去する
-	 *
-	 *
-	 */
-        function _rideramazonNotRegisterHook() {
-            wp_clear_scheduled_hook('_rideramazonDailyEvent');
-
+        function _addAdminOptionPrintScripts() {
+            wp_enqueue_script('dashboard');
+            wp_enqueue_script('riderAmazonAdminOption', $this->pluginDirUrl . '/js/riderAmazonAdminOption.js', array('jquery'), false);
         }
 
-	/*
-	 * 記事作成画面のボックスを追加するフック
-	 * 旧と新で場合わけ
-	 * 
-	 * @return none
-	 */
+        /**
+         * 管理画面のエラー表示を追加する
+         *
+         * @return void
+         */
+        function _addAdminNotices() {
+
+            if ("saveOption" == @$_POST['optionMethod']) {
+
+                $this->_setOption('associateTag', @$_POST['associateTag']);
+                $this->_setOption('accessKeyId', @$_POST['accessKeyId']);
+                $this->_setOption('secretAccessKey', @$_POST['secretAccessKey']);
+                $this->_setOption('associateEmail', @$_POST['associateEmail']);
+                $this->_setOption('associatePassword', @$_POST['associatePassword']);
+                $this->_setOption('cache', @$_POST['cache']);
+
+                $this->_saveOptions();
+            }
+
+            if ("resetOption" == @$_POST['optionMethod']) {
+
+                $this->_deleteOptions();
+            }
+
+            $this->_loadOptions();
+
+            if ("saveOption" == @$_POST['optionMethod']):
+                ?>
+
+<div id="riderAmazonAdminOptionUpdated" class="updated fade" >
+    <p><?php _e('Updated Rider Amazon Options' , $this->i18nDomain); ?></p>
+</div>
+
+            <?php
+            endif;
+            if ($this->_loadOptions() == false):
+                ?>
+
+<div id="riderAmaoznAdminOptionError" class="error fade" >
+    <p><?php _e('You haven\'t set Rider Amazon Options yet. Set', $this->i18nDomain); ?>
+        <a href="<?php echo get_bloginfo('wpurl') . '/wp-admin/options-general.php?page=riderAmazon.php'; ?>">Rider Amazon Options</a></p>
+</div>
+
+
+            <?php
+
+            endif;
+        }
+
+        /*
+                                 * 記事作成画面のボックスを追加するフック
+                                 *
+                                 * @return none
+        */
         function _addCustomBox() {
 
-            add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'post', 'normal');
-            add_meta_box( 'rideramazondiv', __( 'RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'page', 'normal');
-
+            add_meta_box('rideramazondiv', __('RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'post', 'normal');
+            add_meta_box('rideramazondiv', __('RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'page', 'normal');
         }
-
 
         /**
          * ヘッダーにCSSを登録
@@ -203,14 +477,11 @@ if ( !class_exists( 'RiderAmazon' ) ) {
          * @return none
          */
         function _addWpHead() {
-
             ?>
 <!-- Added By RiderAmazon Plugin  -->
 <link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/riderAmazon.css" />
-        <?php
+            <?php
         }
-
-
 
         /**
          * 管理画面用スクリプトの登録をする
@@ -218,16 +489,14 @@ if ( !class_exists( 'RiderAmazon' ) ) {
          *
          * @return none
          */
-        function _adminPrintScripts() {
+        function _addAdminPrintScripts() {
 
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-core');
-            wp_enqueue_script('jquery-effects-core', $this->pluginDirUrl.'/js/effects.core.js', array('jquery','jquery-ui-core'), false);
-            wp_enqueue_script('jquery-effects-highlight', $this->pluginDirUrl.'/js/effects.highlight.js', array('jquery','jquery-ui-core','jquery-effects-core'), false);
-            wp_enqueue_script('riderAmazonJs', $this->pluginDirUrl.'/js/riderAmazon.js', array('jquery','jquery-ui-core','jquery-effects-core','jquery-effects-highlight'), false);
-
+            wp_enqueue_script('jquery-effects-core', $this->pluginDirUrl . '/js/jquery/effects.core.js', array('jquery', 'jquery-ui-core'), false);
+            wp_enqueue_script('jquery-effects-highlight', $this->pluginDirUrl . '/js/jquery/effects.highlight.js', array('jquery', 'jquery-ui-core', 'jquery-effects-core'), false);
+            wp_enqueue_script('riderAmazonJs', $this->pluginDirUrl . '/js/riderAmazon.js', array('jquery', 'jquery-ui-core', 'jquery-effects-core', 'jquery-effects-highlight'), false);
         }
-
 
         /**
          * 管理画面のヘッダにCSSを登録
@@ -238,9 +507,9 @@ if ( !class_exists( 'RiderAmazon' ) ) {
         function _addAdminHead() {
             ?>
 <link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/riderAmazonAdmin.css" />
-        <?php
-        }
 
+            <?php
+        }
 
         /**
          * 管理画面にてamazonに問い合わせ検索
@@ -250,58 +519,53 @@ if ( !class_exists( 'RiderAmazon' ) ) {
          */
         function _riderAmazonAjax() {
 
-        // Amazon Product Advertising API 用パラメータ作成 jsから受けとった情報を格納
+            // Amazon Product Advertising API 用パラメータ作成 jsから受けとった情報を格納
             $amazonParam = array(
-                'operation' => 'ItemSearch',
-                'keyword' => $_POST['keyword'] ,
-                'searchIndex' => $_POST['searchIndex'],
-                'currentPage' => $_POST['currentPage'],
-                'responseGroup' => 'Request,ItemAttributes,Small,Images'
+                    'operation' => 'ItemSearch',
+                    'keyword' => $_POST['keyword'],
+                    'searchIndex' => $_POST['searchIndex'],
+                    'currentPage' => $_POST['currentPage'],
+                    'responseGroup' => 'Request,ItemAttributes,Small,Images'
             );
 
 
-            // Amazon Product Advertising API にアクセスして XML を返してもらう
+// Amazon Product Advertising API にアクセスして XML を返してもらう
             $amazonXml = $this->_fetchAmazonXml($amazonParam);
 
             $parsedAmazonXml = simplexml_load_string($amazonXml);
 
             if ($parsedAmazonXml === false) {
-                die( "alert('XMLパースエラーです')");
+                die("alert('XMLパースエラーです')");
             }
 
-            // エラー表示用
+// エラー表示用
             $isValid = $parsedAmazonXml->Items->Request->IsValid;
             if (isset($isValid)) {
                 $error = $parsedAmazonXml->Items->Request->Errors->Error;
+            } else {
+                $error = $parsedAmazonXml->Error;
             }
-            else {
-                $error = $parsedAmazonXml->Error ;
-            }
-            $totalPages =  (string)$parsedAmazonXml->Items->TotalPages;
-            $htmlResult = $this->_getHtmlResult($parsedAmazonXml) ;
+            $totalPages = (string) $parsedAmazonXml->Items->TotalPages;
+            $htmlResult = $this->_getHtmlResult($parsedAmazonXml);
 
-            // js に返すパラメータを作成
+// js に返すパラメータを作成
             $resultArray = array(
-                'htmlResult' => $htmlResult,
-                'totalPages' => $totalPages,
-                'error' => $error
+                    'htmlResult' => $htmlResult,
+                    'totalPages' => $totalPages,
+                    'error' => $error
             );
 
             $resultJson = json_encode($resultArray);
-            //$json = json_encode($parsedAmazonXml);
-            //      var_dump($totalPages);
-            //            var_dump( $currentPage);
-
-            //    var_dump($isValid);
-            //
-            //        echo $currentPage;
+//$json = json_encode($parsedAmazonXml);
+//      var_dump($totalPages);
+//            var_dump( $currentPage);
+//    var_dump($isValid);
+//
+//        echo $currentPage;
             echo $resultJson;
 
             die();
-
         }
-
-
 
         /**
          * Amazon Product Advertising API から XML を fetch
@@ -317,15 +581,15 @@ if ( !class_exists( 'RiderAmazon' ) ) {
          * @return $amazonXml
          */
         function _fetchAmazonXml($amazonParam) {
-        // 送信された情報を格納
+// 送信された情報を格納
 
             $api_interface = 'http://webservices.amazon.co.jp/onca/xml';
             $secret_access_key = $this->options['secretAccessKey'];
 
-            // パラメーターの設定
+// パラメーターの設定
             $params = array();
             $params['Service'] = 'AWSECommerceService';
-            $params['AssociateTag'] =  $this->options['associateTag'];
+            $params['AssociateTag'] = $this->options['associateTag'];
             $params['AWSAccessKeyId'] = $this->options['accessKeyId'];
             $params['Version'] = '2009-07-01';
 
@@ -334,52 +598,50 @@ if ( !class_exists( 'RiderAmazon' ) ) {
                     $params['Operation'] = $amazonParam['operation'];
                     $params['ResponseGroup'] = $amazonParam['responseGroup'];
                     $params['SearchIndex'] = $amazonParam['searchIndex'];
-                    $params['Keywords'] =  $amazonParam['keyword'];
+                    $params['Keywords'] = $amazonParam['keyword'];
                     $params['ItemPage'] = $amazonParam['currentPage'];
-                    if ( $amazonParam['searchIndex'] != 'All' ) {
+                    if ($amazonParam['searchIndex'] != 'All') {
                         $params['Sort'] = 'salesrank';
                     }
                     break;
                 case 'ItemLookup':
-                    $params['Operation']      = $amazonParam['operation'];
-                    $params['ItemId']       = $amazonParam['itemId'];
-                    $params['ResponseGroup']       = $amazonParam['responseGroup'];
+                    $params['Operation'] = $amazonParam['operation'];
+                    $params['ItemId'] = $amazonParam['itemId'];
+                    $params['ResponseGroup'] = $amazonParam['responseGroup'];
                     break;
             }
 
             $params['Timestamp'] = gmdate('Y-m-d\TH:i:s\Z');
             ksort($params);
 
-            // canonical string を作成します
+// canonical string を作成します
             $canonical_string = '';
             foreach ($params as $k => $v) {
-                $canonical_string .= '&'.$this->rfc3986_urlencode($k).'='.$this->rfc3986_urlencode($v);
+                $canonical_string .= '&' . $this->rfc3986_urlencode($k) . '=' . $this->rfc3986_urlencode($v);
             }
             $canonical_string = substr($canonical_string, 1);
 
-            // 署名の作成
+// 署名の作成
             $parsed_url = parse_url($api_interface);
             $string_to_sign = 'GET' . "\n" . $parsed_url['host'] . "\n" . $parsed_url['path'] . "\n" . $canonical_string;
             $signature = base64_encode(hash_hmac('sha256', $string_to_sign, $secret_access_key, true));
 
             $url = $api_interface . '?' . $canonical_string . '&Signature=' . $this->rfc3986_urlencode($signature);
 
-            // SnoopyによるURLリクエストを生成
+// SnoopyによるURLリクエストを生成
             require_once( ABSPATH . WPINC . '/class-snoopy.php' );
             $Snoopy = new Snoopy();
-            $Snoopy->agent = 'WordPress/' . $wp_version;
+//    $Snoopy->agent = 'WordPress/' . $wp_version;
             $Snoopy->read_timeout = 2;
 
             // リクエスト
-            if( !$Snoopy->fetch($url)) {
-                die( "alert('amazonに接続できませんでした')" );
+            if (!$Snoopy->fetch($url)) {
+                die("alert('amazonに接続できませんでした')");
             }
 
             $amazonXml = $Snoopy->results;
             return $amazonXml;
-
         }
-
 
         /**
          *
@@ -390,18 +652,19 @@ if ( !class_exists( 'RiderAmazon' ) ) {
          * @return <type> $parsedAmazonXm
          *
          */
-        function _CacheAmazonXml($asin) {
+        function _cacheAmazonXml($asin) {
 
-        // キャッシュ作成パッケージを読み込み
+            $parsedAmazonXml = '';
+            // キャッシュ作成パッケージを読み込み
 
-        /**
-         * キャッシュの設定
-         * "lifeTime"は秒単位です、ここでは3日に設定しています
-         */
+            /**
+             * キャッシュの設定
+             * "lifeTime"は秒単位です、ここでは3日に設定しています
+             */
             $options = array(
-                "cacheDir" =>  $this->pluginDir ."/cache/xml/",
-                "lifeTime" => 3*60*60*24,
-                "automaticCleaningFactor" => 0
+                    "cacheDir" => $this->pluginDir . "/cache/xml/",
+                    "lifeTime" => 3 * 60 * 60 * 24,
+                    "automaticCleaningFactor" => 0
             );
 
             require_once("cache/Lite.php");
@@ -409,18 +672,16 @@ if ( !class_exists( 'RiderAmazon' ) ) {
 
             // キャッシュがあるかチェック
             $xmlCache = $Cache->get($asin);
-            if ( $xmlCache ) {	// あればそれを利用
-
+            if ($xmlCache) { // あればそれを利用
                 $parsedAmazonXml = simplexml_load_string($xmlCache);
                 return $parsedAmazonXml;
-
             } else {
 
-            // Amazon Product Advertising API 用パラメータ作成
+                // Amazon Product Advertising API 用パラメータ作成
                 $amazonParam = array(
-                    'operation' => 'ItemLookup',
-                    'itemId' => $asin,
-                    'responseGroup' => 'Medium'
+                        'operation' => 'ItemLookup',
+                        'itemId' => $asin,
+                        'responseGroup' => 'Medium'
                 );
 
                 // Amazon Product Advertising API にアクセスして XML を返してもらう
@@ -430,8 +691,8 @@ if ( !class_exists( 'RiderAmazon' ) ) {
                 if ($parsedAmazonXml === false) {
                     return false;
                 } else {
-                // XMLが返ってきたら利用
-                // XMLをキャッシュ
+                    // XMLが返ってきたら利用
+                    // XMLをキャッシュ
                     $Cache->save($amazonXml, $asin);
 
                     $parsedAmazonXml = simplexml_load_string($amazonXml);
@@ -439,9 +700,6 @@ if ( !class_exists( 'RiderAmazon' ) ) {
                 }
             }
         }
-
-
-
 
         /**
          * RFC3986に合わせ、チルダを除外したURLエンコードをする
@@ -451,10 +709,9 @@ if ( !class_exists( 'RiderAmazon' ) ) {
          * @return
          */
         function rfc3986_urlencode($string) {
-            $string =  str_replace('%7E', '~', rawurlencode($string));
+            $string = str_replace('%7E', '~', rawurlencode($string));
             return $string;
         }
-
 
         /**
          * パースしたXMLから表示HTMLを作成
@@ -466,319 +723,100 @@ if ( !class_exists( 'RiderAmazon' ) ) {
          */
         function _getHtmlResult($parsedAmazonXml) {
 
-            $items =  $parsedAmazonXml->Items->Item;
+            $items = $parsedAmazonXml->Items->Item;
 
-            if (isset($items) ) {
+            if (isset($items)) {
 
-                $itemPage = (int)$parsedAmazonXml->Items->Request->ItemSearchRequest->ItemPage;
+                $itemPage = (int) $parsedAmazonXml->Items->Request->ItemSearchRequest->ItemPage;
                 $number = ( ($itemPage - 1) * 10) + 1;
 
-                $HTMLResult = <<< EOF
+                $HTMLResult =
+                        '<div id="riderAmazon_resultTable">
+                                       <table >
+                                         <thead>
+                                           <tr>
+                                             <th>No.</th>
+                                             <th>Image</th>
+                                             <th class="titleAndCode">Title & code</th>
+                                           </tr>
+                                         </thead>
+                                         <tbody>'
+                ;
 
-                    <div id="riderAmazon_resultTable">
-                    <table >
-    <thead>
-        <tr>
-            <th>No.</th>
-            <th>Image</th>
-            <th class="titleAndCode">Title & code</th>
-        </tr>
-    </thead>
-    <tbody>
-EOF;
 
-
-                foreach ( $items as $item ) {
+                foreach ($items as $item) {
 
                     $HTMLResult .= <<< EOF
-        <tr>
-            <th class="number" >
-                        $number.
-            </th>
-            <td class="image" >
-                <a href="{$item->DetailPageURL}"><img src="{$item->SmallImage->URL}" alt="{$item->ASIN}" /></a>
-            </td>
-            <td class="titleAndCode" >
-                <a href="{$item->DetailPageURL}"> {$item->ItemAttributes->Title}</a>
-                <br /><br /><code title='AmazonLink コード'>[amazon]{$item->ASIN}[/amazon]</code>
-            </td>
-        </tr>
+
+                                                              <tr>
+                                                                <th class="number" >
+                            $number.
+                                                                </th>
+                                                                <td class="image" >
+                                                                  <a href="{$item->DetailPageURL}"><img src="{$item->SmallImage->URL}" alt="{$item->ASIN}" /></a>
+                                                                </td>
+                                                                <td class="titleAndCode" >
+                                                                  <a href="{$item->DetailPageURL}"> {$item->ItemAttributes->Title}</a>
+                                                              <br /><br />
+                                                                  <code title='AmazonLink コード'>[amazon]{$item->ASIN}[/amazon]</code>
+               </td>
+               </tr>
+
 EOF;
+
+
 
                     $number++;
                 }
 
-                $HTMLResult .=  <<< EOF
-                    </tbody>
-</table>
-</div>
+                $HTMLResult .= <<< EOF
+                                  </tbody>
+               </table>
+               </div>
 EOF;
             }
+
             return $HTMLResult;
         }
 
+        /*
+                                 * 記事作成画面のドッキングボックス
+                                 *
+                                 * @return none
+        */
 
-
-        /**
-         * 管理画面にページを追加する
-         *
-         * @return void
-         */
-        function _addAdminOptionPage() {
-        // オプションページの追加
-            if ( function_exists('add_options_page') ) {
-                add_options_page(__('Rider Amazon Option', $this->i18nDomain), __('RiderAmazon', $this->i18nDomain), 8, basename(__FILE__), array(&$this, '_adminOptionPage'));
-            }
-        }
-
-
-        /**
-         * 管理画面のエラー表示を追加する
-         *
-         * @return void
-         */
-        function _addAdminNotices() {
-
-            if( "saveOption" == $_POST['optionMethod'] ) {
-
-                $this->_setOption('associateTag', $_POST['associateTag']);
-                $this->_setOption('accessKeyId', $_POST['accessKeyId']);
-                $this->_setOption('secretAccessKey', $_POST['secretAccessKey']);
-                $this->_setOption('associateEmail', $_POST['associateEmail']);
-                $this->_setOption('associatePassword', $_POST['associatePassword']);
-
-                $this->_saveOptions();
-
-
-            }
-
-            if( "resetOption" == $_POST['optionMethod'] ) {
-
-                $this->_deleteOptions();
-            }
-
-            $this->_loadOptions() ;
-
-            if( "saveOption" == $_POST['optionMethod'] ) { ?>
-
-<div id="riderAmazonAdminOptionUpdated" class="updated fade" >
-    <p>Rider Amazon の Option が設定されました。</p>
-</div>
-
-            <?php }
-
-            if (  $this->_loadOptions() == false ) {  ?>
-<div id="riderAmaoznAdminOptionError" class="error" >
-    <p>Rider Amazon の Option が未設定です。<a href="<?php  echo get_bloginfo( 'wpurl' ) . '/wp-admin/options-general.php?page=riderAmazon.php'  ;?>">こちらからRider Amazon の設定を行って下さい</a></p>
-</div>
-            <?php }
-
-        }
-
-
-        /**
-         * 管理画面メニューのオプションページ
-         *
-         * @return void
-         */
-
-        function _adminOptionPage() {
-
-        // プラグインオプション画面のコード出力
-            ?>
-<div class="wrap" id="riderAmazonAdminOptionPage">
-    <h2><?php _e('RiderAmazon Setting', $this->i18nDomain); ?></h2>
-    <h3><?php _e('共通の設定', $this->i18nDomain); ?></h3>
-    <form action="<?php  echo $_SERVER['REQUEST_URI']; ?>" method="post">
-
-
-        <fieldset>
-
-
-            <legend><?php _e('Product Advertising API アカウント', $this->i18nDomain); ?></legend>
-            <p>
-                            <?php _e('Product Advertising API を利用するために必要なアカウント情報です。<br />この項目を設定しない場合は、ブログ記事での商品表示、及び、投稿画面での商品検索も利用することができません。', $this->i18nDomain); ?><br />
-                            <?php _e('<strong>重要</strong>：他人のアカウントを利用することは、Amazon によって禁止されています。', $this->i18nDomain); ?>
-                            <?php _e('参考：<a href="http://affiliate.amazon.co.jp/gp/associates/network/help/t126/a3/ref=amb_link_84042136_3?pf_rd_m=AN1VRQENFRJN5&pf_rd_s=center-1&pf_rd_r=&pf_rd_t=501&pf_rd_p=&pf_rd_i=assoc_help_t126_a1" target="_blank">Amazon.co.jp による参考訳：Product Advertising API アカウント</a>', $this->i18nDomain); ?>
-            </p>
-
-            <table class="form-table">
-
-                <tr>
-                    <th><label for="accessKeyId"><?php _e('アクセスキー ID', $this->i18nDomain); ?></label></th>
-                    <td><input type="text" name="accessKeyId" id="accessKeyId" value="<?php echo htmlspecialchars($this->_getOption('accessKeyId')); ?>" />
-                        <span class="description"><?php _e('Amazon.co.jp Access Key ID.', $this->i18nDomain); ?></span>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th><label for="secretAccessKey"><?php _e('秘密キー', $this->i18nDomain); ?></label></th>
-                    <td><input type="text" name="secretAccessKey" id="secretAccessKey" value="<?php echo htmlspecialchars($this->_getOption('secretAccessKey')); ?>" />
-                        <span class="description"><?php _e('secretAccessKey', $this->i18nDomain); ?></span>
-                    </td>
-                </tr>
-
-            </table>
-
-        </fieldset>
-
-        <fieldset>
-            <legend><?php _e('Amazon Associates', $this->i18nDomain); ?></legend>
-
-            <table class="form-table">
-                <tr>
-                    <th><label for="associateTag"><?php _e('AssociateTag', $this->i18nDomain); ?></label></th>
-                    <td><input type="text" name="associateTag" id="associateTag" value="<?php echo htmlspecialchars($this->_getOption('associateTag')); ?>" />
-                        <span class="description"><?php _e('Amazon アソシエイトのリンクで使用するトラッキング ID です。空欄の場合は作者のものが使用されます。', $this->i18nDomain); ?></span>
-                    </td>
-                </tr>
-
-                <tr>
-                    <th><label for="associateEmail"><?php _e('Associate Email', $this->i18nDomain); ?></label></th>
-                    <td><input type="text" name="associateEmail" id="associateEmail" value="<?php echo htmlspecialchars($this->_getOption('associateEmail')); ?>" />
-                        <span class="description"><?php _e('Amazon アソシエイト、アカウントへのログインEmail。', $this->i18nDomain); ?></span>
-                    </td>
-                </tr>
-
-
-                <tr>
-                    <th><label for="associatePassword"><?php _e('Associate Password', $this->i18nDomain); ?></label></th>
-                    <td><input type="password" name="associatePassword" id="associatePassword" value="<?php echo htmlspecialchars($this->_getOption('associatePassword')); ?>" />
-                        <span class="description"><?php _e('Amazon アソシエイト、アカウントへのログインパスワード', $this->i18nDomain); ?></span>
-                    </td>
-                </tr>
-
-       <!--     <tr>
-                <th><label for=""><?php _e('秘密キー', $this->i18nDomain); ?></label></th>
-                <td><input type="text" name="" id="" value="<?php echo htmlspecialchars($this->_getOption('void')); ?>" />
-                    <span class="description"><?php _e('secretAccessKey', $this->i18nDomain); ?></span>
-                </td>
-            </tr>
-                -->
-
-            </table>
-        </fieldset>
-
-        <p class="submit">
-            <input class="button-primary" id="saveOption" type="submit" value="<?php _e('設定を更新する &raquo;', $this->i18nDomain); ?>" />
-        </p>
-        <input type="hidden" name="optionMethod" value="saveOption" />
-    </form>
-
-    <form action="<?php  echo $_SERVER['REQUEST_URI']; ?>" method="post">
-        <p class="submit">
-            <input class="button" id="resetOption" type="submit" value="<?php _e('設定をリセットする &raquo;', $this->i18nDomain); ?>" />
-        </p>
-        <input type="hidden" name="optionMethod" value="resetOption" />
-    </form>
-</div>
-
-
-        <?php
-        //    var_dump($this->options);
-        }
-
-        /**
-         * Retrieves the plugin's options from the database.
-         *
-         *
-         * @return boolean
-         */
-        function _loadOptions() {
-            if( false === ( $options = get_option( $this->optionName) ) ) {
-                $this->options = $this ->defaultOptions;
-                return false;
-            } else {
-                $this->options = $options;
-                return true;
-            }
-            return false;
-        }
-
-
-
-        /**
-         * delete the plugin's options from the database.
-         *
-         */
-        function _deleteOptions() {
-            return delete_option($this->optionName);
-        }
-
-
-        /**
-         * Provides an easy mechanism to save the options value to the WordPress database
-         * for persistence.
-         *
-         * @return boolean true if the save was successful.
-         */
-        function  _saveOptions( ) {
-            return update_option( $this->optionName, $this->options );
-        }
-
-
-        /**
-         * 自分自身のプラグインオプション値を得る
-         *
-         * @param string $key オプションkey
-         * @return mixed オプション値
-         *
-         */
-        function _getOption($key) {
-            return $this->options[$key];
-        }
-
-        /**
-         * 自分自身のプラグインオプション値を設定する
-         *
-         * @param string $key オプションkey
-         * @param mixed $value 値
-         * @return void
-         *
-         */
-        function _setOption($key, $value) {
-            $this->options[$key] = $value;
-        }
-
-
-	/*
-	 * 記事作成画面のドッキングボックス
-	 * 
-	 * @return none
-	 */
-        public function _dbxPost() {
+        function _dbxPost() {
             global $post;
 
             $categories = array(
-                __('全商品', $this->i18nDomain) => 'All',
-                __('本', $this->i18nDomain) => 'Books',
-                __('洋書', $this->i18nDomain) => 'ForeignBooks',
-                __('エレクトロニクス', $this->i18nDomain) => 'Electronics',
-                __('ホーム＆キッチン', $this->i18nDomain) => 'Kitchen',
-                __('ミュージック', $this->i18nDomain) => 'Music',
-                __('ビデオ', $this->i18nDomain) => 'Video',
-                __('ソフトウェア', $this->i18nDomain) => 'Software',
-                __('ゲーム', $this->i18nDomain) => 'VideoGames',
-                __('おもちゃ＆ホビー', $this->i18nDomain) => 'Toys',
-                __('スポーツ＆アウトドア', $this->i18nDomain) => 'SportingGoods',
-                __('ヘルス＆ビューティー', $this->i18nDomain) => 'HealthPersonalCare',
-                __('時計', $this->i18nDomain) => 'Watches',
-                __('ベビー＆マタニティー', $this->i18nDomain) => 'Baby',
-                __('アパレル＆シューズ', $this->i18nDomain) => 'Apparel',
+                    __('全商品', $this->i18nDomain) => 'All',
+                    __('本', $this->i18nDomain) => 'Books',
+                    __('洋書', $this->i18nDomain) => 'ForeignBooks',
+                    __('エレクトロニクス', $this->i18nDomain) => 'Electronics',
+                    __('ホーム＆キッチン', $this->i18nDomain) => 'Kitchen',
+                    __('ミュージック', $this->i18nDomain) => 'Music',
+                    __('ビデオ', $this->i18nDomain) => 'Video',
+                    __('ソフトウェア', $this->i18nDomain) => 'Software',
+                    __('ゲーム', $this->i18nDomain) => 'VideoGames',
+                    __('おもちゃ＆ホビー', $this->i18nDomain) => 'Toys',
+                    __('スポーツ＆アウトドア', $this->i18nDomain) => 'SportingGoods',
+                    __('ヘルス＆ビューティー', $this->i18nDomain) => 'HealthPersonalCare',
+                    __('時計', $this->i18nDomain) => 'Watches',
+                    __('ベビー＆マタニティー', $this->i18nDomain) => 'Baby',
+                    __('アパレル＆シューズ', $this->i18nDomain) => 'Apparel',
             );
-
             ?>
 
 <input type="hidden" name="riderAmazon_url" id="riderAmazon_url" value="<?php echo get_bloginfo('wpurl'); ?>" />
-<input type="hidden" name="riderAmazon_dir" id="riderAmazon_dir" value="<?php echo ABSPATH.'/wp-includes/'; ?>" />
+<input type="hidden" name="riderAmazon_dir" id="riderAmazon_dir" value="<?php echo ABSPATH . '/wp-includes/'; ?>" />
 <input type="hidden" name="riderAmazon_totalPages" id="riderAmazon_totalPages" value="0" />
 <input type="hidden" name="riderAmazon_currentPage" id="riderAmazon_currentPage" value="1" />
 <input type="hidden" name="riderAmazon_lastSearchIndex" id="riderAmazon_lastSearchIndex" value="" />
 <input type="hidden" name="riderAmazon_lastKeyword" id="riderAmazon_lastKeyword" value="" />
 <select name="riderAmazon_searchIndex" id="riderAmazon_searchIndex" >
                 <?php
-                foreach ( $categories as $key => $value ) {
-                    print "\t".'<option value="'.$value.'">'.$key."</option>\n";
+                foreach ($categories as $key => $value) {
+                    print "\t" . '<option value="' . $value . '">' . $key . "</option>\n";
                 }
                 ?>
 </select>
@@ -790,12 +828,8 @@ EOF;
 
 <div name="riderAmazon_result" id="riderAmazon_result"></div>
 
-        <?php
-
-
+            <?php
         }
-
-
 
         /**
          * ASINをhtmlに置換する
@@ -803,31 +837,28 @@ EOF;
          * @param $attr,$asinCode
          * @return $htmlCode
          */
+        function replaceCode($attr, $asinCode='') {
 
-        function replaceCode($atts, $asinCode='') {
-
-            if( !($asinCode=='') ) {
-                $this->asin_ = $asinCode ;
+            if (!($asinCode == '')) {
+                $asin = $asinCode;
 
                 // 前準備
-                $this->getData();
-                // HTMLコードを生成
-                $htmlCode = $this->makeCode();
+                $htmlCode = $this->getData($asin);
+
+
 
                 return $htmlCode;
             }
-
         }
 
-	/*** 下ごしらえ：データを取得 ***/
+        /*                                 * * データを取得 ** */
 
-        function getData() {
+        function getData($asin) {
 
-        // ASINをチェック
-            $this->checkASIN();
+            // ASINをチェック
+            $this->_checkAsin($asin);
 
-            $parsedAmazonXml = $this->_CacheAmazonXml($this->asin_);
-
+            $parsedAmazonXml = $this->_cacheAmazonXml($asin);
 
             // AmazonECSか自分がネットワークから離脱している場合
             if (false === $parsedAmazonXml) {
@@ -841,95 +872,184 @@ EOF;
 
             // 変数の設定
 
-            $this->item = $parsedAmazonXml->Items->Item;
-            $this->ASIN = $this->item->ASIN;
-            $this->Type = $this->item->ItemAttributes->ProductGroup;
-            $this->Title = $this->item->ItemAttributes->Title;
-            $this->Creator = $this->item->ItemAttributes->Creator;
-            $this->Author = $this->item->ItemAttributes->Author;
-            $this->Manufacturer = $this->item->ItemAttributes->Manufacturer;
-            $this->Currency = $this->item->ItemAttributes->ListPrice->CurrencyCode;
-            $this->Binding = $this->item->ItemAttributes->Binding;
-            $this->Price = $this->item->ItemAttributes->ListPrice->Amount;
-            $this->CutPrice = $this->item->OfferSummary->LowestNewPrice->Amount;
-            $this->Stock = $this->item->OfferSummary->TotalNew;
-            $this->URL = "http://www.amazon.co.jp/o/ASIN/" . $this->ASIN . "/" . $this->options['associateTag'];
-            $this->URLMobile = "http://www.amazon.co.jp/gp/aw/rd.html?url=/gp/aw/d.html&lc=msn&dl=1&a=".
-                $this->ASIN.'&uid=NULLGWDOCOMO&at='. $this->options['associateTag'];
-            $this->KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=" . $this->options['associateTag'] . "&keywords=";
-            $this->Artist = $this->item->ItemAttributes->Artist;
 
-            // 価格を設定
-            if ((empty($this->Price)) && (!empty($this->CutPrice))) {
-                $this->Price = $this->CutPrice;
-            }
-            if ((!empty($this->CutPrice)) && (((int)$this->Price) > ((int)$this->CutPrice))) {
-                $this->discounted = true;
-            }
+
+            $item = $parsedAmazonXml->Items->Item;
+            $URL = "http://www.amazon.co.jp/o/ASIN/" . $asin . "/" . $this->options['associateTag'];
+            $URLMobile = "http://www.amazon.co.jp/gp/aw/rd.html?url=/gp/aw/d.html&lc=msn&dl=1&a=" .
+                    $asin . '&uid=NULLGWDOCOMO&at=' . $this->options['associateTag'];
+            $KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=" . $this->options['associateTag'] . "&keywords=";
+
+
 
             // タイプ別処理
-            if ($this->Type == "Book") {
-                $this->str_creator = __("Author", "$this->i18nDomain");
-                $this->pubDate = split("-", $this->item->ItemAttributes->PublicationDate);
-
+            if ($item->ItemAttributes->ProductGroup == "Book") {
+                $str_creator = __("Author", "$this->i18nDomain");
+                $pubDate = split("-", $item->ItemAttributes->PublicationDate);
             } else {
-                $this->str_creator = __("Player", "$this->i18nDomain");
-                $this->pubDate = split("-", $this->item->ItemAttributes->ReleaseDate);
-
+                $str_creator = __("Player", "$this->i18nDomain");
+                $pubDate = split('-', $item->ItemAttributes->ReleaseDate);
             }
 
-            list($this->pubDate["year"], $this->pubDate["month"], $this->pubDate["day"]) = $this->pubDate;
+            list( $pubDate['year'], $pubDate['month'], $pubDate['day'] ) = $pubDate;
 
-            if (($this->Type == "DVD") || ($this->Type == "Music")) {
-                $this->NumOfDiscs = $this->item->ItemAttributes->NumberOfDiscs;
-                $this->RunningTime = $this->item->ItemAttributes->RunningTime;
-                if ($this->RunningTime > 60) {
-                    $hour = round($this->RunningTime / 60);
-                    $min = round($this->RunningTime % 60);
-                    $this->RunningTime = "{$hour} ". __("hour", "$this->i18nDomain") . " {$min} " . __("min", "$this->i18nDomain");
+            if (($item->ItemAttributes->ProductGroup == "DVD") || ($item->ItemAttributes->ProductGroup == "Music")) {
+                $NumOfDiscs = $item->ItemAttributes->NumberOfDiscs;
+                $RunningTime = $item->ItemAttributes->RunningTime;
+                if ($RunningTime > 60) {
+                    $hour = round($RunningTime / 60);
+                    $min = round($RunningTime % 60);
+                    $RunningTime = $hour . __("hour", $this->i18nDomain) . " {$min} " . __("min", $this->i18nDomain);
                 } else {
-                    $this->RunningTime += " ". __("min", "$this->i18nDomain");
+                    $RunningTime += " " . __("min", "$this->i18nDomain");
                 }
-
-            }else {
-                $this->NumOfDiscs = "";
-                $this->RunningTime = "";
-
+            } else {
+                $NumOfDiscs = "";
+                $RunningTime = "";
             }
 
             //カバー画像を取得
 
-            $this->Image = $this->getCover();
+            $Image = $this->getCover($item, $asin);
 
-            return true;
+            // HTMLコードを生成
 
+            $htmlCode = $this->_makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $Image, $str_creator, $KeywordURL, $pubDate, $RunningTime);
+
+
+
+            return $htmlCode;
         }
 
-	/*** Amazonコードを生成 ***/
+        /*                                 * * Amazonコードを生成 ** */
 
-        function makeCode() {
+        function _makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $Image, $str_creator, $KeywordURL, $pubDate, $RunningTime) {
 
             $htmlCode = "\n";
 
-            $htmlCode .= $this->createGraphicalCode();
+            $htmlCode .= '<div class="riderAmazon">';
+            $htmlCode .= '<div class="hreview">';
+            $htmlCode .= '<div class="item item-' . $asin . '">';
+
+            // タイトル
+            $htmlCode .= '<div class="fn">';
+            $htmlCode .= '<a href="' . $URL . '" class="url">';
+            $htmlCode .= $item->ItemAttributes->Title;
+            $htmlCode .= ( ($NumOfDiscs >= "2") ? " ( {
+                            $NumOfDiscs
+            }" . __("discs", "$i18nDomain") . ")" : "");
+            $htmlCode .= "</a>";
+            $htmlCode .= "</div>";
+
+
+            // カバー画像
+            $htmlCode .= '<div class="image">';
+            $htmlCode .= '<a href="' . $URL . '" class="url" ';
+            $htmlCode .= 'title="Amazon.co.jp: ">' . $Image . "</a>";
+            $htmlCode .= "</div>";
+
+            // 購入者情報
+            $htmlCode .= '<div class="reports">' . $this->getActionData($asin) . "</div>";
+
+
+            $htmlCode .= '<div class="buttons">';
+            // 詳細情報を見るボタン
+            $htmlCode .=$this->showDetailButton($item, $URL);
+            // カートに入れるボタン
+            $htmlCode .= $this->showAddCartButton($asin);
+            $htmlCode .= '</div>';
+
+            $htmlCode .= '<table >';
+            // summary="'. __(" \"", "$this->i18nDomain") . $this->Title;
+            //		$htmlCode .= __("\" ", "$this->i18nDomain"). __(" information", "$this->i18nDomain"). '"
+
+            $htmlCode .= "<tbody>";
+
+            // 製作者
+            if (!empty($item->ItemAttributes->Creator) || !empty($item->ItemAttributes->Author)) {
+                $htmlCode .= "<tr>";
+                $htmlCode .= "<th>" . $str_creator . "</th>";
+                $htmlCode .= "<td>";
+                $htmlCode .= $this->getCreators($item, $KeywordURL);
+                $htmlCode .= "</td>";
+                $htmlCode .= "</tr>";
+            }//製作者情報がなければ
+            elseif (!empty($item->ItemAttributes->Artist)) {
+                $htmlCode .= "<tr>";
+                $htmlCode .= "<th>Artist</th>";
+                $htmlCode .= '<td><a href="' . $KeywordURL . urlencode($item->ItemAttributes->Artist) . '">' . $item->ItemAttributes->Artist . '</a></td>';
+                $htmlCode .= "</td>";
+                $htmlCode .= "</tr>";
+            }
+
+            // 製造元
+            if (!empty($item->ItemAttributes->Manufacturer)) {
+                $htmlCode .= "<tr>";
+                $htmlCode .= "<th>" . __("Manufacturer", "$this->i18nDomain") . "</th>";
+                $htmlCode .= '<td><a href="' . $KeywordURL . urlencode($item->ItemAttributes->Manufacturer) . '">' .
+                        $item->ItemAttributes->Manufacturer . '</a></td>';
+                $htmlCode .= "</tr>";
+            }
+
+            // 発売日
+            if (!empty($pubDate["year"])) {
+                $htmlCode .= "<tr>";
+                $htmlCode .= "<th>" . __("Release Date", "$this->i18nDomain") . "</th>";
+                $htmlCode .= "<td>";
+                $htmlCode .= $pubDate["year"] . "年";
+                $htmlCode .= ( (!empty($pubDate["month"])) ? $pubDate["month"] . "月" : "");
+                $htmlCode .= ( (!empty($pubDate["day"])) ? $pubDate["day"] . "日" : "");
+                $htmlCode .= "</td>";
+                $htmlCode .= "</tr>";
+            }
+
+            // 価格（定価と割引後の価格）
+            if (!empty($item->ItemAttributes->ListPrice->Amount)) {
+                $htmlCode .= "<tr>";
+                $htmlCode .= "<th>" . __("Price", "$this->i18nDomain") . "</th>";
+                $htmlCode .= "<td>";
+
+                $htmlCode .= $this->getPrice($item);
+
+                $htmlCode .= "</td>";
+                $htmlCode .= "</tr>";
+            }
+
+            // 再生時間
+            if (!empty($RunningTime)) {
+                $htmlCode .= "<tr>";
+                $htmlCode .= "<th>" . __("Running Time", "$this->i18nDomain") . "</th>";
+                $htmlCode .= "<td>" . $RunningTime . "</td>";
+                $htmlCode .= "</tr>";
+            }
+
+            $htmlCode .= "</tbody>";
+            $htmlCode .= '</table><br clear="both" />';
+            $htmlCode .= "</div>";
+            $htmlCode .= "</div></div>";
+            $htmlCode .= '<br clear="both" />';
+
 
             $htmlCode = preg_replace("/<\/(div|p|table|tbody|tr|dl|dt|dd|li)>/", "</$1>\n", $htmlCode);
             $htmlCode = str_replace('&', '&amp;', $htmlCode);
 
             return $htmlCode;
-
         }
 
-	/*** 入力されたASINをチェック ***/
+        /**
+         * 入力されたASINをチェック
+         *
+         * @param <type> $asin
+         *
+         */
+        function _checkAsin($asin) {
 
-        function checkASIN() {
-
-            if (empty($this->asin_)) {
+            if (empty($asin)) {
                 $this->errors[] = __("Please set ASIN for Amazon-Linkage Plugin.", "$this->i18nDomain");
             }
 
-            $this->asin_ = preg_replace("/[\- ]/", "", $this->asin_);
-            $length = strlen($this->asin_);
+            $asin = preg_replace("/[\- ]/", "", $asin);
+            $length = strlen($asin);
 
             if (($length != 9) && ($length != 10) && ($length != 13)) {
                 $this->errors[] = __("Please check the length of ASIN (accept only 9, 10, 13 letters one).", "$this->i18nDomain");
@@ -938,280 +1058,209 @@ EOF;
 
             // ASIN(ここではISBN)を10桁に変換
             switch ($length) {
-                case "13": $this->ISBN_13to10(); break;
-                case "9" : $this->ISBN_9to10(); break;
-                case "12": $this->ISBN_12to10(); break;
+                case "13": $this->ISBN_13to10($asin);
+                    break;
+                case "9" : $this->ISBN_9to10($asin);
+                    break;
+                case "12": $this->ISBN_12to10($asin);
+                    break;
             }
-
-        }
-
-
-	/*** コードを生成 ***/
-
-        function createGraphicalCode() {
-
-            $htmlCode .= '<div class="riderAmazon">';
-            $htmlCode .= '<div class="hreview">';
-            $htmlCode .= "\n".'<div class="item item-'. $this->ASIN .'">';
-
-            // タイトル
-            $htmlCode .= '<div class="fn">';
-            $htmlCode .= '<a href="' .$this->URL .'" class="url">';
-            $htmlCode .= $this->Title;
-            $htmlCode .= (($this->NumOfDiscs >= "2") ? " ({$this->NumOfDiscs}".__("discs", "$this->i18nDomain").")" : "");
-            $htmlCode .= "</a>";
-            $htmlCode .= "</div>";
-
-
-            // カバー画像
-            $htmlCode .= '<div class="image">';
-            $htmlCode .= '<a href="'.$this->URL.'" class="url" ';
-            $htmlCode .= 'title="Amazon.co.jp: ">'. $this->Image . "</a>";
-            $htmlCode .= "</div>";
-
-            // 購入者情報
-            $htmlCode .= '<div class="reports">'.$this->getActionData()."</div>";
-
-
-            $htmlCode .= '<div class="buttons">';
-            // 詳細情報を見るボタン
-            $htmlCode .=$this->showDetailButton();
-            // カートに入れるボタン
-            $htmlCode .= $this->showAddCartButton();
-            $htmlCode .= '</div>';
-
-            $htmlCode .= '<table >';
-            // summary="'. __(" \"", "$this->i18nDomain") . $this->Title;
-            //		$htmlCode .= __("\" ", "$this->i18nDomain"). __(" information", "$this->i18nDomain"). '"
-
-            $htmlCode .= "\n<tbody>\n";
-
-            // 製作者
-            if (!empty($this->Creator) || !empty($this->Author)) {
-                $htmlCode .= "<tr>";
-                $htmlCode .= "<th>". $this->str_creator ."</th>";
-                $htmlCode .= "<td>";
-                $htmlCode .= $this->getCreators();
-                $htmlCode .= "</td>";
-                $htmlCode .= "</tr>";
-            }//製作者情報がなければ
-            elseif(!empty($this->Artist)) {
-                $htmlCode .= "<tr>";
-                $htmlCode .= "<th>Artist</th>";
-                $htmlCode .= '<td><a href="' . $this->KeywordURL . urlencode($this->Artist) .'">'. $this->Artist .'</a></td>';
-                $htmlCode .= "</td>";
-                $htmlCode .= "</tr>";
-            }
-
-            // 製造元
-            if (!empty($this->Manufacturer)) {
-                $htmlCode .= "<tr>";
-                $htmlCode .= "<th>". __("Manufacturer", "$this->i18nDomain") ."</th>";
-                $htmlCode .= '<td><a href="' . $this->KeywordURL . urlencode($this->Manufacturer) .'">'.
-                    $this->Manufacturer .'</a></td>';
-                $htmlCode .= "</tr>";
-            }
-
-            // 発売日
-            if (!empty($this->pubDate["year"])) {
-                $htmlCode .= "<tr>";
-                $htmlCode .= "<th>". __("Release Date", "$this->i18nDomain") ."</th>";
-                $htmlCode .= "<td>";
-                $htmlCode .= $this->pubDate["year"]. "年";
-                $htmlCode .= ((!empty($this->pubDate["month"])) ? $this->pubDate["month"]. "月" : "");
-                $htmlCode .= ((!empty($this->pubDate["day"])) ? $this->pubDate["day"]. "日" : "");
-                $htmlCode .= "</td>";
-                $htmlCode .= "</tr>";
-            }
-
-            // 価格（定価と割引後の価格）
-            if (!empty($this->Price)) {
-                $htmlCode .= "<tr>";
-                $htmlCode .= "<th>". __("Price", "$this->i18nDomain") ."</th>";
-                $htmlCode .= "<td>";
-
-                $htmlCode .= $this->getPrice();
-
-                $htmlCode .= "</td>";
-                $htmlCode .= "</tr>";
-            }
-
-            // 再生時間
-            if (!empty($this->RunningTime)) {
-                $htmlCode .= "<tr>";
-                $htmlCode .= "<th>". __("Running Time", "$this->i18nDomain") ."</th>";
-                $htmlCode .= "<td>". $this->RunningTime ."</td>";
-                $htmlCode .= "</tr>";
-            }
-
-            $htmlCode .= "</tbody>";
-            $htmlCode .= '</table><br clear="both" />';
-
-            $htmlCode .= "</div>";
-
-
-            $htmlCode .= "</div></div>";
-
-            $htmlCode .= '<br clear="both" />';
-
-
-            return $htmlCode;
-
-        }
-
-
-	/*** 購入者情報を返す ***/
-
-        function getActionData() {
-
-        //   if (true === $this->show_iteminfo) {
-
-            $actionData = $this->_loadAmazonReports($this->ASIN);
-            //     }
-
-            return $actionData;
-
         }
 
         /**
-         *詳細を見るボタン
          *
+         * @param <type> $asin
+         * @return <type>
          *
-         *@return $htmlCode
          */
-        function showDetailButton() {
+        function getActionData($asin) {
 
-            $tmpCode = '<a href="'.$this->URL.'" title="Amazon.co.jp:' .$this->Title. '" class="showdetailbutton" >';
-            $tmpCode .='<img src="'.$this->pluginDirUrl. '/images/' . $this->showDetailButtonImg .'" title="amazon.co.jpで詳細情報を見る" alt="amazon.co.jpで詳細情報を見る"/></a>';
+            //   if (true === $this->show_iteminfo) {
+
+            $actionData = $this->_loadAmazonReports($asin);
+            //     }
+
+            return $actionData;
+        }
+
+        /**
+         * 詳細を見るボタン
+         *
+         * @param <type> $item
+         * @param <type> $URL
+         * @return <type> $tmpCode
+         *
+         */
+        function showDetailButton($item, $URL) {
+
+            $tmpCode = '<a href="' . $URL . '" title="Amazon.co.jp:' . $item->ItemAttributes->Title . '" class="showdetailbutton" >';
+            $tmpCode .='<img src="' . $this->pluginDirUrl . '/images/' . $this->showDetailButtonImg . '" title="amazon.co.jpで詳細情報を見る" alt="amazon.co.jpで詳細情報を見る"/></a>';
 
             return $tmpCode;
         }
 
-	/*** カートに入れるボタンを表示するコードを返す ***/
-
-        function showAddCartButton() {
+        /**
+         * カートに入れるボタンを表示するコードを返す
+         *
+         * @param <type> $asin
+         * @return <type> $tmpCode
+         *
+         */
+        function showAddCartButton($asin) {
 
             $tmpCode = '<form class="showaddcartbutton" action="http://www.amazon.co.jp/gp/aws/cart/add.html" method="post">';
-            $tmpCode .= '<input name="ASIN.1" value="'. $this->ASIN .'" type="hidden" />';
+            $tmpCode .= '<input name="ASIN.1" value="' . $asin . '" type="hidden" />';
             $tmpCode .= '<input name="Quantity.1" value="1" type="hidden" />';
-            $tmpCode .= '<input name="AssociateTag" value="'. $this->options['associateTag'] .'" type="hidden" />';
-            $tmpCode .= '<input name="SubscriptionId" value="'. $this->options['accessKeyId'] .'" type="hidden" />';
+            $tmpCode .= '<input name="AssociateTag" value="' . $this->options['associateTag'] . '" type="hidden" />';
+            $tmpCode .= '<input name="SubscriptionId" value="' . $this->options['accessKeyId'] . '" type="hidden" />';
 
             $tmpCode .= '<input name="submit.add-to-cart" type="image" ';
-            $tmpCode .= 'src="'. $this->pluginDirUrl. '/images/' . $this->addCartButtonImg . '" ';
-            $tmpCode .= 'alt="'. __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain"). '" ';
-            $tmpCode .= 'title="'. __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain"). '" />';
+            $tmpCode .= 'src="' . $this->pluginDirUrl . '/images/' . $this->addCartButtonImg . '" ';
+            $tmpCode .= 'alt="' . __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain") . '" ';
+            $tmpCode .= 'title="' . __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain") . '" />';
             $tmpCode .= '</form>';
 
             return $tmpCode;
-
         }
 
-        function getPrice() {
+        /**
+         *
+         *
+         * @param <type> $item
+         * @return <type> $tmpCode
+         *
+         */
+        function getPrice(
+                $item) {
 
-            $tmpCode .= (($this->discounted == true) ? "<del>" : "");
+            // Price $item->ItemAttributes->ListPrice->Amount
+            // discountPrice $item->OfferSummary->LowestNewPrice->Amount
+            if ((empty($item->ItemAttributes->ListPrice->Amount)) && (!empty($item->OfferSummary->LowestNewPrice->Amount))) {
+                $item->ItemAttributes->ListPrice->Amount = $item->OfferSummary->LowestNewPrice->Amount;
+            }
+            if ((!empty($item->OfferSummary->LowestNewPrice->Amount)) && (((int) $item->ItemAttributes->ListPrice->Amount) > ((int) $item->OfferSummary->LowestNewPrice->Amount))) {
+                $discounted = true;
+            }
+
+            $tmpCode .= ( ($discounted == true) ? "<del>" : "");
 
             // 定価
-            $tmpCode .= ($this->Currency == "USD") ?
-                "$ ". number_format($this->Price) : number_format($this->Price) . __("yen", "$this->i18nDomain");
+            $tmpCode .= ( $item->ItemAttributes->ListPrice->CurrencyCode == "USD") ?
+                    "$ " . number_format($item->ItemAttributes->ListPrice->Amount) : number_format($item->ItemAttributes->ListPrice->Amount) . __("yen", "$this->i18nDomain");
 
             // 割引していればその価格を表示
-            if ($this->discounted == true) {
+            if ($discounted == true) {
                 $tmpCode .= "</del> ";
-                $tmpCode .= ($this->Currency == "USD") ?
-                    "$ ".number_format($this->CutPrice) : number_format($this->CutPrice). __("yen", "$this->i18nDomain");
-                $CutRate	= round(( 1 - ( $this->CutPrice / $this->Price )) * 100);
-                $tmpCode .= (($CutRate > 0) ? " (<em>{$CutRate}%</em> OFF)" : "");
+                $tmpCode .= ( $item->ItemAttributes->ListPrice->CurrencyCode == "USD") ?
+                        "$ " . number_format($item->OfferSummary->LowestNewPrice->Amount) : number_format($item->OfferSummary->LowestNewPrice->Amount) . __("yen", "$this->i18nDomain");
+                $CutRate = round(( 1 - ( $item->OfferSummary->LowestNewPrice->Amount / $item->ItemAttributes->ListPrice->Amount )) * 100);
+                $tmpCode .= ( ($CutRate > 0) ? " (<em> {
+                        $CutRate}%</em> OFF)" : "");
             }
 
             return $tmpCode;
-
         }
 
-	/*** 製作者情報を5人まで返す	***/
-
-        function getCreators() {
+        /**
+         * 製作者情報を5人まで返す
+         *
+         * @param <type> $item
+         * @param <type> $keywordURL
+         * @return <type> $tmpCode
+         *
+         *
+         */
+        function getCreators($item, $KeywordURL) {
 
             unset($tmpCode);
 
+            if ($item->ItemAttributes->ProductGroup == "Book") {
+                $Creator = $item->ItemAttributes->Author;
+                // var_dump($item->ItemAttributes->Author);
+                // var_dump($item->ItemAttributes->Creator);
+            } else {
 
-
-            if($this->Type == "Book") {
-                $this->Creator = $this->Author;
-            // var_dump($this->Author);
-            // var_dump($this->Creator);
+                $Creator = $item->ItemAttributes->Creator;
             }
 
 
-            if (isset($this->Creator[1])) {
+            if (isset($Creator[1])) {
 
-                for ($q=0; $q<5; $q++) {
-                    if (isset($this->Creator[$q])) {
-                        $tmpCode .= '<a href="' . $this->KeywordURL . urlencode($this->Creator[$q]) .'">';
-                        $tmpCode .= $this->Creator[$q]. "</a>";
+                for ($q = 0; $q < 5; $q++) {
+                    if (isset($Creator[$q])) {
+                        $tmpCode .= '<a href="' . $KeywordURL . urlencode($Creator[$q]) . '">';
+                        $tmpCode .= $Creator[$q] . "</a>";
                         $tmpCode .= "<br />";
                     }
                 }
-
             } else {
-                $tmpCode .= '<a href="' . $this->KeywordURL . urlencode($this->Creator) .'">';
-                $tmpCode .= $this->Creator. "</a>";
+                $tmpCode .= '<a href="' . $KeywordURL . urlencode($Creator) . '">';
+                $tmpCode .= $Creator . "</a>";
             }
 
             return $tmpCode;
-
         }
 
-	/*** レビューを書いた人を示すmicroformaticなXHTMLを返す 
-	
-	function getCodeGenerator(){
-		
-		$tmpCode =	'<dl class="hidden">'."\n";
-		$tmpCode .= '<dt>version</dt><dd><span class="version">0.1</span></dd>';
-		$tmpCode .= '<dt>type</dt><dd><span class="type">product</span></dd>';
-		$tmpCode .= '<dt>reviewer</dt><dd><a href="http://www.openvista.jp/person/leva" class="reviewer">leva</a></dd>';
-		$tmpCode .= '</dl>';
-		
-		return $tmpCode;
-		
-	}***/
+        /*                                 * * レビューを書いた人を示すmicroformaticなXHTMLを返す
 
-	/*** カバー画像を表示するコードを生成 ***/
+                                  function getCodeGenerator(){
 
-        function getCover() {
+                                  $tmpCode =	'<dl class="hidden">'."\n";
+                                  $tmpCode .= '<dt>version</dt><dd><span class="version">0.1</span></dd>';
+                                  $tmpCode .= '<dt>type</dt><dd><span class="type">product</span></dd>';
+                                  $tmpCode .= '<dt>reviewer</dt><dd><a href="http://www.openvista.jp/person/leva" class="reviewer">leva</a></dd>';
+                                  $tmpCode .= '</dl>';
 
-        // 1フォルダにキャッシュする容量が大きくなりすぎないように3つのフォルダに分ける
-            switch (substr($this->ASIN, 0, 1)) {
-                case "0": $path = "0"; break;
-                case "4": $path = "4"; break;
-                case "B": $path = "B"; break;
-                default : $path = "unknown"; break;
+                                  return $tmpCode;
+
+                                  }** */
+
+        /**
+         * カバー画像を表示するコードを生成
+         *
+         * @param <type> $item
+         * @param <type> $asin
+         * @return <type>
+         *
+         */
+        function getCover($item, $asin) {
+
+            // 1フォルダにキャッシュする容量が大きくなりすぎないように3つのフォルダに分ける
+            switch (substr($asin, 0, 1)) {
+                case "0": $path = "0";
+                    break;
+                case "4": $path = "4";
+                    break;
+                case "B": $path = "B";
+                    break;
+                default : $path = "unknown";
+                    break;
             }
 
 
             // カバー画像のパス
-            $img_path =  $this->pluginDir . "/cache/img/" .$path."/".$this->ASIN. ".jpg";
-            $img_url = $this->pluginDirUrl . "/cache/img/" .$path."/".$this->ASIN. ".jpg";
+            $img_path = $this->pluginDir . "/cache/img/" . $path . "/" . $asin . ".jpg";
+            $img_url = $this->pluginDirUrl . "/cache/img/" . $path . "/" . $asin . ".jpg";
 
             unset($source);
 
             // キャッシュされた画像の設定
             if (file_exists($img_url)) {
 
-                list($this->width_ , $this->height_) = getImageSize($img_url);
+                list($this->width_, $this->height_) = getImageSize($img_url);
 
-            // キャッシュがない場合、画像を取得して設定
+                // キャッシュがない場合、画像を取得して設定
             } else {
 
-            // 入手可能なできるだけ大きい画像を取得
+                // 入手可能なできるだけ大きい画像を取得
 
 
-                if (!empty($this->item->LargeImage->URL)) {
-                    $source = $this->item->LargeImage->URL;
-                } elseif (!empty($this->item->MediumImage->URL)) {
-                    $source = $this->item->MediumImage->URL;
-                } elseif (!empty($this->item->SmallImage->URL)) {
-                    $source = $this->item->SmallImage->URL;
+                if (!empty($item->LargeImage->URL)) {
+                    $source = $item->LargeImage->URL;
+                } elseif (!empty($item->MediumImage->URL)) {
+                    $source = $item->MediumImage->URL;
+                } elseif (!empty($item->SmallImage->URL)) {
+                    $source = $item->SmallImage->URL;
                 }
 
                 // 外部に画像がなかった場合
@@ -1219,7 +1268,7 @@ EOF;
 
                     return $this->setLackedCover();
 
-                // 外部に画像があった場合
+                    // 外部に画像があった場合
                 } else {
 
                     list($width, $height, $fileTypes) = getImageSize($source);
@@ -1229,11 +1278,10 @@ EOF;
                     if (($width == 1) || ($width == 0)) {
 
                         return $this->setLackedCover();
-
                     }
 
                     // リサイズ値より画像の長辺の方が長い場合はリサイズ
-                    if ( $longest > $this->resize ) {
+                    if ($longest > $this->resize) {
                         $percent = round($this->resize / $longest, 2);
                         $this->width_ = round($width * $percent);
                         $this->height_ = round($height * $percent);
@@ -1241,11 +1289,10 @@ EOF;
                         $this->width_ = $width;
                         $this->height_ = $height;
                     }
-
                 }
 
                 // 画像の読み込み
-                switch($fileTypes) {
+                switch ($fileTypes) {
                     case "2": $bg = ImageCreateFromJPEG($source);
                         break;
                     case "3": $bg = ImageCreateFromPNG($source);
@@ -1256,47 +1303,49 @@ EOF;
                 }
 
                 // 画像のリサイズ
-                $im = ImageCreateTrueColor($this->width_, $this->height_) or die ("Cannot create image");
-                ImageCopyResampled($im, $bg, 0, 0, 0, 0, $this->width_ , $this->height_ , $width, $height);
+                $im = ImageCreateTrueColor($this->width_, $this->height_) or die("Cannot create image");
+                ImageCopyResampled($im, $bg, 0, 0, 0, 0, $this->width_, $this->height_, $width, $height);
 
                 // ファイルのキャッシュとメモリキャッシュの廃棄
                 ImageJPEG($im, $img_path, 80);
                 ImageDestroy($bg);
                 ImageDestroy($im);
-
             }
 
-            $Image	= '<img src="'. $img_url .'" ';
-            $Image .= 'width="'. $this->width_ . '" height="'. $this->height_ .'"';
+            $Image = '<img src="' . $img_url . '" ';
+            $Image .= 'width="' . $this->width_ . '" height="' . $this->height_ . '"';
             $Image .= 'class="photo" ';
             //            $Image .= 'class="photo reflect rheight20 ropacity40" ';
-            $Image .= 'alt="' . $this->Title . __(" - cover art", "$this->i18nDomain") .'" />';
+            $Image .= 'alt="' . $item->ItemAttributes->Title . __(" - cover art", "$this->i18nDomain") . '" />';
 
             return $Image;
-
         }
 
-	/*** カバー画像がない場合、その旨のカバー画像を設定する ***/
+        /*                                 * * カバー画像がない場合、その旨のカバー画像を設定する ** */
 
         function setLackedCover() {
 
-            list($this->width_ , $this->height_) = array(160, 260);
-            $Image = '<img src="'. $this->pluginDirUrl .'/images/printing.png" ';
+            list($this->width_, $this->height_) = array(160, 260);
+            $Image = '<img src="' . $this->pluginDirUrl . '/images/printing.png" ';
             $Image .= 'width="160" height="260" class="photo" ';
-            $Image .= 'alt="'. __("Cover image is not found", "$this->i18nDomain") .'" />';
+            $Image .= 'alt="' . __("Cover image is not found", "$this->i18nDomain") . '" />';
 
 
             return $Image;
-
         }
 
-	/*** 9桁ISBNにチェックデジットを足す ***/
+        /**
+         * 9桁ISBNにチェックデジットを足す
+         *
+         * @param <type> $asin
+         *
+         */
+        function ISBN_9to10($asin) {
 
-        function ISBN_9to10() {
-
-        // 総和を求める
-            for ($digit=0, $i=0; $i<9; $i++) {
-                $digit += $this->asin_{$i} * (10 - $i);
+            // 総和を求める
+            for ($digit = 0, $i = 0; $i < 9; $i++) {
+                $digit += $asin {
+                        $i} * (10 - $i);
             }
 
             // 11から総和を11で割った余りを引く（10の場合はX, 11の場合は0に）
@@ -1305,37 +1354,76 @@ EOF;
                 $digit = "X";
             }
 
-            $this->asin_ .= $digit;
-
+            $asin .= $digit;
         }
 
-	/*** 13桁新ISBNを10桁旧ISBNにする ***/
+        /**
+         *  13桁新ISBNを10桁旧ISBNにする
+         *
+         * @param <type> $asin
+         *
+         */
+        function ISBN_13to10($asin) {
 
-        function ISBN_13to10() {
-
-            $this->asin_ = substr($this->asin_ , 3, 9); // 978+チェックデジット除去
-            return $this->ISBN_9to10();
-
+            $asin = substr($asin, 3, 9); // 978+チェックデジット除去
+            return $this->ISBN_9to10($asin);
         }
 
-	/*** 12桁新ISBNを10桁旧ISBNにする ***/
+        /**
+         *  12桁新ISBNを10桁旧ISBNにする
+         *
+         * @param <type> $asin
+         *
+         */
+        function ISBN_12to10($asin) {
 
-        function ISBN_12to10() {
-
-            $this->asin_ = substr($this->asin_ , 3, 9); // 978除去
-            return $this->ISBN_9to10();
-
+            $asin = substr($asin, 3, 9); // 978除去
+            return $this->ISBN_9to10($asin);
         }
 
+        /*
+                                 * プラグイン有効化時に毎日発生するイベントを、一度行ってから登録
+                                 *
+                                 *
+                                 *
+        */
+
+        function _rideramazonRegisterHook() {
 
 
+            $this->_rideramazonDailyEvent();
+            //      wp_schedule_event(time(), 'daily', '_rideramazonDailyEvent');
+            //  テスト用 毎時
+            wp_schedule_event(time(), 'hourly', '_rideramazonDailyEvent');
+        }
 
-	/*** エラーがあるかどうか調べる ***/
+        /*
+                                 * 毎日発生するイベント
+                                 *
+                                 *
+        */
+
+        function _rideramazonDailyEvent() {
+
+            $this->_getReport();
+            $this->_saveReport();
+            $this->_makeTable();
+        }
+
+        /*
+                                 * プラグイン無効化時にイベントを消去する
+                                 *
+                                 *
+        */
+
+        function _rideramazonNotRegisterHook() {
+            wp_clear_scheduled_hook('_rideramazonDailyEvent');
+        }
 
         // レポートをゲット
-        function getReport() {
+        function _getReport() {
 
-            $this->docType = "report";
+
             require_once("HTTP/Client.php");
 
             $request = "submit.download_XML";
@@ -1346,34 +1434,34 @@ EOF;
             $host = "https://affiliate.amazon.co.jp/gp";
 
             $loginParams = array(
-                'ie' => "UTF-8",
-                'protocol' => "https",
-                '__mk_ja_JP' => urlencode("カタカナ"),
-                'path' => "/gp/associates/login/login.html",
-                'useRedirectOnSuccess' => "0",
-                'query' => "",
-                'mode' => "1",
-                'redirectProtocol' => "",
-                'pageAction' => "/gp/associates/login/login.html",
-                'disableCorpSignUp' => "",
-                'email' => $this->options['associateEmail'],
-                'password' => $this->options['associatePassword'],
-                'action' => "sign-in",
+                    'ie' => "UTF-8",
+                    'protocol' => "https",
+                    '__mk_ja_JP' => urlencode("カタカナ"),
+                    'path' => "/gp/associates/login/login.html",
+                    'useRedirectOnSuccess' => "0",
+                    'query' => "",
+                    'mode' => "1",
+                    'redirectProtocol' => "",
+                    'pageAction' => "/gp/associates/login/login.html",
+                    'disableCorpSignUp' => "",
+                    'email' => $this->options['associateEmail'],
+                    'password' => $this->options['associatePassword'],
+                    'action' => "sign-in",
             );
 
             $reportParams = array(
-                '__mk_ja_JP' => urlencode("カタカナ"),
-                'tag' => "",
-                'reportType' => $reportType,
-                'preSelectedPeriod' => "yesterday",
-                'periodType' => "exact",
-                'startYear' => "2003",
-                'startMonth' => "0",
-                'startDay' => "1",
-                'endYear' => date("Y", $yesterday),
-                'endMonth' => (string)(date("m", $yesterday) - 1),
-                'endDay' => date("d", $yesterday),
-                $request => "",
+                    '__mk_ja_JP' => urlencode("カタカナ"),
+                    'tag' => "",
+                    'reportType' => $reportType,
+                    'preSelectedPeriod' => "yesterday",
+                    'periodType' => "exact",
+                    'startYear' => "2003",
+                    'startMonth' => "0",
+                    'startDay' => "1",
+                    'endYear' => date("Y", $yesterday),
+                    'endMonth' => (string) (date("m", $yesterday) - 1),
+                    'endDay' => date("d", $yesterday),
+                    $request => "",
             );
 
             $loginQueries = http_build_query($loginParams);
@@ -1382,7 +1470,8 @@ EOF;
             $client = new HTTP_Client();
 
             // ログイン画面
-            $client->get("{$host}/associates/login/login.html");
+            $client->get(" {
+                    $host}/associates/login/login.html");
             $response = $client->currentResponse();
             // ログイン
             $client->post("{$host}/flex/sign-in/select.html", $loginQueries, true);
@@ -1395,67 +1484,38 @@ EOF;
 
                 $this->report = $response['body'];
                 return true;
-
             } else {
 
                 return false;
-
             }
-
-
         }
 
         // ゲットしたレポートを出力
-        function saveReport() {
+        function _saveReport() {
 
-        // レポートを捕捉
+            $reportFileName = "report" . date('Y-m-d');
+
+            // レポートを捕捉
             ob_start();
             print_r($this->report);
             $buffer = ob_get_contents();
             ob_end_clean();
 
             // 出力
-            $fn = "{$this->pluginDir}/report/{$this->docType}.xml";
-            file_put_contents($fn,$buffer);
-            chmod($fn,0666);
+            $fn = "{$this->pluginDir}/report/{$reportFileName}.xml";
+            file_put_contents($fn, $buffer);
+            chmod($fn, 0666);
 
             return true;
-
         }
 
+        function _makeTable() {
 
-        function isError() {
-
-            if (count($this->errors) > 0) {
-
-                $msg =	'<p class="error">';
-
-                foreach($this->errors as $error) {
-                    $msg .= "<li>エラー：{$error}</li>";
-                }
-
-                $msg .= "</ul>";
-
-                return $msg;
-
-            } else {
-
-                return false;
-
-            }
-
-        }
-
-
-        function makeDB() {
-
-        // あらかじめ作成したXMLを取得
-            $this->report = simplexml_load_file($this->pluginDir."/report/report.xml");
+            // あらかじめ作成したXMLを取得
+            $this->report = simplexml_load_file($this->pluginDir . "/report/report.xml");
             // DBを更新
-            $this->updateDB();
-
+            $this->_updateTable();
         }
-
 
         /**
          * データベース wp_amazonreport から clicks orders をよみこむ
@@ -1468,29 +1528,26 @@ EOF;
             global $wpdb;
             $table_name = $wpdb->prefix . "amazonreport";
 
-            $sql = "SELECT orders,clicks,asin FROM " . $table_name . " WHERE asin = '". $asin ."'";
+            $sql = "SELECT orders,clicks,asin FROM " . $table_name . " WHERE asin = '" . $asin . "'";
             $request = $wpdb->get_row($sql);
 
 
             if (!empty($request->orders)) {
 
-                $code .= '<div class="orders" ><img src="'.$this->pluginDirUrl.'/images/buys.png" width="16" height="16" alt="購入数" /> '.
-                    "<strong>{$request->orders}人</strong>が購入しました</div>";
-
+                $code .= '<div class="orders" ><img src="' . $this->pluginDirUrl . '/images/buys.png" width="16" height="16" alt="購入数" /> ' .
+                        "<strong>{$request->orders}人</strong>が購入しました</div>";
             }
 
             if (!empty($request->asin)) {
 
-                $code .= '<div class="clicks"><img src="'.$this->pluginDirUrl.'/images/clicks.png" width="16" height="16" alt="クリック数" /> '.
-                    "このサイトで<em>{$request->clicks}人</em>がクリック</div> ";
-
+                $code .= '<div class="clicks"><img src="' . $this->pluginDirUrl . '/images/clicks.png" width="16" height="16" alt="クリック数" /> ' .
+                        "このサイトで<em>{$request->clicks}人</em>がクリック</div> ";
             }
 
             return $code;
-
         }
 
-        function updateDB() {
+        function _updateTable() {
 
             global $wpdb;
             $table_name = $wpdb->prefix . "amazonreport";
@@ -1514,19 +1571,20 @@ EOF;
             foreach ($this->report->ItemsNoOrders->Item as $item) {
                 $asin = (string) $item["ASIN"];
                 $items[$asin] = array(
-                    "Title"	=> str_replace(",", "", (string) $item["Title"]),
-                    "Clicks" => (int) $item["Clicks"]
+                        "Title" => str_replace(",", "", (string) $item["Title"]),
+                        "Clicks" => (int) $item["Clicks"]
                 );
             }
-
+            $commands[] = "INSERT INTO " . $table_name . " (asin, title, clicks, orders, price) " .
+                    "VALUES ('" . $asin . "','" . $item["Title"] . "','" . $item["Clicks"] . "','" . $item["Orders"] . "','" . $item["Price"] . "')";
             // 購入された商品を配列に格納
             foreach ($this->report->Items->Item as $item) {
                 $asin = (string) $item["ASIN"];
                 $items[$asin] = array(
-                    "Title"	=> str_replace("'", "", (string) $item["Title"]),
-                    "Price"	=> str_replace(",", "", (string) $item["Price"]),
-                    "Clicks" => (int) $item["Clicks"],
-                    "Orders" => (int) $item["Qty"]
+                        "Title" => str_replace("'", "", (string) $item["Title"]),
+                        "Price" => str_replace(",", "", (string) $item["Price"]),
+                        "Clicks" => (int) $item["Clicks"],
+                        "Orders" => (int) $item["Qty"]
                 );
             }
 
@@ -1538,8 +1596,8 @@ EOF;
 
             foreach ($items as $asin => $item) {
 
-            // データを作成 or 更新
-                $sql = "SELECT * FROM	". $table_name . " WHERE asin = '".$asin."'";
+                // データを作成 or 更新
+                $sql = "SELECT * FROM	" . $table_name . " WHERE asin = '" . $asin . "'";
                 $request = $wpdb->query($sql);
 
                 unset($commands);
@@ -1547,30 +1605,48 @@ EOF;
                 $item["Title"] = htmlspecialchars($item["Title"]);
 
                 if ($wpdb->get_row($sql)) {
-                // データがある場合は更新
-                    $commands[] =	"UPDATE ". $table_name . " SET clicks = '".$item["Clicks"]."' WHERE asin = '".$asin."'";
-                    $commands[] =	"UPDATE ". $table_name . " SET orders = '".$item["Orders"]."' WHERE asin = '".$asin."'";
+                    // データがある場合は更新
+                    $commands[] = "UPDATE " . $table_name . " SET clicks = '" . $item["Clicks"] . "' WHERE asin = '" . $asin . "'";
+                    $commands[] = "UPDATE " . $table_name . " SET orders = '" . $item["Orders"] . "' WHERE asin = '" . $asin . "'";
                 } else {
-                // データがない場合は作成
-                    $commands[] = "INSERT INTO ". $table_name . " (asin, title, clicks, orders, price) ".
-                        "VALUES ('".$asin."','".$item["Title"]."','".$item["Clicks"]."','".$item["Orders"]."','".$item["Price"]."')";
+                    // データがない場合は作成
+                    $commands[] = "INSERT INTO " . $table_name . " (asin, title, clicks, orders, price) " .
+                            "VALUES ('" . $asin . "','" . $item["Title"] . "','" . $item["Clicks"] . "','" . $item["Orders"] . "','" . $item["Price"] . "')";
                 }
 
                 // クエリを投げて更新
                 foreach ($commands as $command) {
                     $request = $wpdb->query($command);
                 }
-
             }
-
         }
 
-    } //end of class
+        function _isError() {
 
+            if (count($this->errors) > 0) {
+
+                $msg = '<ul class="error">';
+
+                foreach ($this->errors as $error) {
+                    $msg .= "<li>エラー：{$error}</li>";
+                }
+
+                $msg .= "</ul>";
+
+                return $msg;
+            } else {
+
+                return false;
+            }
+        }
+
+    }
+
+    //end of class
 } //end of class exists
 
-if ( class_exists( 'RiderAmazon' ) ) {
-    $rideramazon = new RiderAmazon();
+if (class_exists('RiderAmazon')) {
+    $rideramazon
+            = new RiderAmazon();
 }
-
 ?>
