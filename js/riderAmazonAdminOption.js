@@ -12,7 +12,7 @@ RiderAmazonAdminOption.prototype = {
   
 
     fadeInMessage: function(){
-      jQuery(".fadeIn").fadeIn("slow");
+      jQuery(".fade").fadeIn("slow");
 
     }
 

@@ -63,7 +63,7 @@ if (!class_exists('RiderAmazon')) {
         //カートに入れるボタンの画像
         var $addCartButtonImg = "gocart119.png";
         // 国際化リソースドメイン
-        var $i18nDomain = 'riderAmazon';
+        var $i18nDomain = 'RiderAmazon';
         // RiderAmazon
         var $pluginDirName;
         // /path/to/RiderAmazon
@@ -111,9 +111,12 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
 // admin option hooks
 
             add_action('admin_menu', array(&$this, '_addAdminOptionPage'));
+          
+
 
 // admin post/page hooks
             add_action('admin_menu', array(&$this, '_addCustomBox'));
+
 //   add_action('admin_print_styles', array(&$this, '_addAdminPrintStyles'));
             add_action('admin_print_scripts', array(&$this, '_addAdminPrintScripts'));
             add_action('wp_ajax_riderAmazonAjax', array(&$this, '_riderAmazonAjax'));
@@ -125,10 +128,12 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
 
 
             register_activation_hook(__FILE__, array(&$this, '_rideramazonRegisterHook'));
+
             register_deactivation_hook(__FILE__, array(&$this, '_rideramazonNotRegisterHook'));
 
 
-            echo wp_get_schedule('_rideramazonDailyEvent');
+
+          echo wp_get_schedule('_rideramazonDailyEvent');
         }
 
 
@@ -192,7 +197,7 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
         }
 
         function _addPluginActionLinks($actions) {
-            $link = '<a href="'.get_bloginfo( 'wpurl' ).'/wp-admin/options-general.php?page='.basename(__FILE__).'" >'. __(Settings) .'</a>';
+            $link = '<a href="'.get_bloginfo( 'wpurl' ).'/wp-admin/plugins.php.php?page='.basename(__FILE__).'" >'. __('Settings') .'</a>';
             array_unshift($actions, $link);
             return $actions;
         }
@@ -204,15 +209,15 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
          */
         function _addAdminOptionPage() {
 
-            $optionPage = add_options_page(
+            $optionPage = add_plugins_page(
                     __('Rider Amazon Option', $this->i18nDomain),
                     __('RiderAmazon', $this->i18nDomain),
-                    8,
+                    'activate_plugins',
                     basename(__FILE__),
                     array(&$this, '_adminOptionPage')
             );
 
-            add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPrintStyles'));
+add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPrintStyles'));
             add_action('admin_print_scripts-' . $optionPage, array(&$this, '_addAdminOptionPrintScripts'));
             add_action('admin_notices', array(&$this, "_addAdminNotices"));
         }
@@ -417,7 +422,7 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
          */
         function _addAdminNotices() {
 
-            if ("saveOption" == @$_POST['optionMethod']) {
+            if ("saveOption" == @$_POST['optionMethod']):
 
                 $this->_setOption('associateTag', @$_POST['associateTag']);
                 $this->_setOption('accessKeyId', @$_POST['accessKeyId']);
@@ -427,7 +432,12 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
                 $this->_setOption('cache', @$_POST['cache']);
 
                 $this->_saveOptions();
-            }
+                ?>
+<div id="riderAmazonAdminOptionUpdated" class="updated fade" >
+    <p><?php _e('Updated Rider Amazon Options' , $this->i18nDomain); ?></p>
+</div>
+<?php
+            endif;
 
             if ("resetOption" == @$_POST['optionMethod']) {
 
@@ -436,21 +446,13 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
 
             $this->_loadOptions();
 
-            if ("saveOption" == @$_POST['optionMethod']):
-                ?>
 
-<div id="riderAmazonAdminOptionUpdated" class="updated fade" >
-    <p><?php _e('Updated Rider Amazon Options' , $this->i18nDomain); ?></p>
-</div>
-
-            <?php
-            endif;
             if ($this->_loadOptions() == false):
                 ?>
 
 <div id="riderAmaoznAdminOptionError" class="error fade" >
     <p><?php _e('You haven\'t set Rider Amazon Options yet. Set', $this->i18nDomain); ?>
-        <a href="<?php echo get_bloginfo('wpurl') . '/wp-admin/options-general.php?page=riderAmazon.php'; ?>">Rider Amazon Options</a></p>
+        <a href="<?php echo get_bloginfo('wpurl') . '/wp-admin/plugins.php?page=riderAmazon.php'; ?>">Rider Amazon Options</a></p>
 </div>
 
 
@@ -1562,8 +1564,8 @@ EOF;
 				PRIMARY KEY (asin)
 				);";
 
-                require_once(ABSPATH . 'wp-admin/upgrade-functions.php');
-                dbDelta($sql);
+                //require_once(ABSPATH . 'wp-admin/upgrade-functions.php');
+                //dbDelta($sql);
                 $wpdb->query($sql);
             }
 
