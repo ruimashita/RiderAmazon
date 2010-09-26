@@ -1,38 +1,38 @@
 /*
- * jQuery UI Effects Drop 1.7.2
+ * jQuery UI Effects Slide 1.8.4
  *
- * Copyright (c) 2009 AUTHORS.txt (http://jqueryui.com/about)
- * Dual licensed under the MIT (MIT-LICENSE.txt)
- * and GPL (GPL-LICENSE.txt) licenses.
+ * Copyright 2010, AUTHORS.txt (http://jqueryui.com/about)
+ * Dual licensed under the MIT or GPL Version 2 licenses.
+ * http://jquery.org/license
  *
- * http://docs.jquery.com/UI/Effects/Drop
+ * http://docs.jquery.com/UI/Effects/Slide
  *
  * Depends:
- *	effects.core.js
+ *	jquery.effects.core.js
  */
-(function($) {
+(function( $, undefined ) {
 
-$.effects.drop = function(o) {
+$.effects.slide = function(o) {
 
 	return this.queue(function() {
 
 		// Create element
-		var el = $(this), props = ['position','top','left','opacity'];
+		var el = $(this), props = ['position','top','left'];
 
 		// Set options
-		var mode = $.effects.setMode(el, o.options.mode || 'hide'); // Set Mode
+		var mode = $.effects.setMode(el, o.options.mode || 'show'); // Set Mode
 		var direction = o.options.direction || 'left'; // Default Direction
 
 		// Adjust
 		$.effects.save(el, props); el.show(); // Save & Show
-		$.effects.createWrapper(el); // Create Wrapper
+		$.effects.createWrapper(el).css({overflow:'hidden'}); // Create Wrapper
 		var ref = (direction == 'up' || direction == 'down') ? 'top' : 'left';
 		var motion = (direction == 'up' || direction == 'left') ? 'pos' : 'neg';
-		var distance = o.options.distance || (ref == 'top' ? el.outerHeight({margin:true}) / 2 : el.outerWidth({margin:true}) / 2);
-		if (mode == 'show') el.css('opacity', 0).css(ref, motion == 'pos' ? -distance : distance); // Shift
+		var distance = o.options.distance || (ref == 'top' ? el.outerHeight({margin:true}) : el.outerWidth({margin:true}));
+		if (mode == 'show') el.css(ref, motion == 'pos' ? -distance : distance); // Shift
 
 		// Animation
-		var animation = {opacity: mode == 'show' ? 1 : 0};
+		var animation = {};
 		animation[ref] = (mode == 'show' ? (motion == 'pos' ? '+=' : '-=') : (motion == 'pos' ? '-=' : '+=')) + distance;
 
 		// Animate

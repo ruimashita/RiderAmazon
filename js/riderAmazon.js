@@ -123,9 +123,15 @@ RiderAmazon.prototype = {
 
     fadeInMessage: function(){
         jQuery("#riderAmazonAdminOptionUpdated").fadeIn("slow")
+    },
+
+key: function(event){
+        // Enter key が 押されたら
+        if(13==event.keyCode){
+            event.preventDefault();
+            this.selectSearchType('first');
+        }
     }
-
-
 
 
 };
@@ -149,6 +155,12 @@ jQuery(document).ready(function(){
     });
     jQuery("#riderAmazonAdminOptionPage #saveOption").click(function(){
         rideramazon.fadeInMessage();
+    });
+     jQuery("#riderAmazon_keyword").keydown(function(event){
+        rideramazon.key(event);
+
+
+
     });
 });
 
