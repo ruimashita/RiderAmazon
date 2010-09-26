@@ -69,7 +69,7 @@ if (!class_exists('RiderAmazon')) {
         // /path/to/RiderAmazon
         var $pluginDir;
         // http://sample.com/path/to/RiderAmazon
-        var $pluginDirUrl;
+        var $pluginDirURL;
         // wp_opions table option_name column
         var $optionName = "riderAmazonOption";
         var $options;
@@ -90,13 +90,13 @@ if (!class_exists('RiderAmazon')) {
 // /path/to/RiderAmazon
             $this->pluginDir = WP_PLUGIN_DIR . '/' . $this->pluginDirName;
 // http://sample.com/path/to/RiderAmazon
-            $this->pluginDirUrl = WP_PLUGIN_URL . '/' . $this->pluginDirName;
+            $this->pluginDirURL = WP_PLUGIN_URL . '/' . $this->pluginDirName;
 
             //Localization
             $locale = get_locale();
             load_plugin_textdomain($this->i18nDomain, $this->pluginDir. '/locales/', $this->pluginDirName. '/locales/' );
 
-// load $this->optinos from DB
+
             $this->defaultOptions = array(
                     'associateTag' => __('retujyou-22', $this->i18nDomain),
                     'accessKeyId' => '',
@@ -105,8 +105,9 @@ if (!class_exists('RiderAmazon')) {
                     'associatePassword' => '',
                     'xmlCache' => '',
                     'imageCache' => '',
-                    'maxSize' => '111'
+                    'maxSize' => '160'
             );
+// load $this->optinos from DB
             $this->_loadOptions();
 
 // add action link
@@ -241,7 +242,7 @@ if (!class_exists('RiderAmazon')) {
                             <p>1. <?php _e('you can send present for me.', $this->i18nDomain); ?> </p>
                             <div class="inside">
                                 <a href="<?php _e('http://amzn.com/w/37VZ4S64TVJ87', $this->i18nDomain); ?>">
-                                    <img src="<?php echo $this->pluginDirUrl . '/images/amazon.gif'; ?>" width="122" title="amazon.co.jp wish list" />
+                                    <img src="<?php echo $this->pluginDirURL . '/images/amazon.gif'; ?>" width="122" title="amazon.co.jp wish list" />
                                 </a>
                             </div>
                         </div>
@@ -399,13 +400,13 @@ if (!class_exists('RiderAmazon')) {
         }
 
         function _addAdminOptionPrintStyles() {
-            wp_enqueue_style('riderAmazonAdminOption', $this->pluginDirUrl . '/css/riderAmazonAdminOption.css');
+            wp_enqueue_style('riderAmazonAdminOption', $this->pluginDirURL . '/css/riderAmazonAdminOption.css');
             wp_enqueue_style('dashboard');
         }
 
         function _addAdminOptionPrintScripts() {
             wp_enqueue_script('dashboard');
-            wp_enqueue_script('riderAmazonAdminOption', $this->pluginDirUrl . '/js/riderAmazonAdminOption.js', array('jquery'), false);
+            wp_enqueue_script('riderAmazonAdminOption', $this->pluginDirURL . '/js/riderAmazonAdminOption.js', array('jquery'), false);
         }
 
         /**
@@ -528,9 +529,9 @@ if (!class_exists('RiderAmazon')) {
         function _addAdminPrintScripts() {
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-core');
-            wp_enqueue_script('jquery-effects-core', $this->pluginDirUrl . '/js/jquery/effects.core.js', array('jquery', 'jquery-ui-core'), false);
-            wp_enqueue_script('jquery-effects-highlight', $this->pluginDirUrl . '/js/jquery/effects.highlight.js', array('jquery', 'jquery-ui-core', 'jquery-effects-core'), false);
-            wp_enqueue_script('riderAmazonJs', $this->pluginDirUrl . '/js/riderAmazon.js', array('jquery', 'jquery-ui-core', 'jquery-effects-core', 'jquery-effects-highlight'), false);
+            wp_enqueue_script('jquery-effects-core', $this->pluginDirURL . '/js/jquery/effects.core.js', array('jquery', 'jquery-ui-core'), false);
+            wp_enqueue_script('jquery-effects-highlight', $this->pluginDirURL . '/js/jquery/effects.highlight.js', array('jquery', 'jquery-ui-core', 'jquery-effects-core'), false);
+            wp_enqueue_script('riderAmazonJs', $this->pluginDirURL . '/js/riderAmazon.js', array('jquery', 'jquery-ui-core', 'jquery-effects-core', 'jquery-effects-highlight'), false);
         }
 
         /**
@@ -540,7 +541,7 @@ if (!class_exists('RiderAmazon')) {
          * @return void
          */
         function _addAdminPrintStyles() {
-            wp_enqueue_style('riderAmazonAdmin', $this->pluginDirUrl . '/css/riderAmazonAdmin.css');
+            wp_enqueue_style('riderAmazonAdmin', $this->pluginDirURL . '/css/riderAmazonAdmin.css');
         }
 
         /**
@@ -750,7 +751,7 @@ EOF;
         function _addWpHead() {
             ?>
 <!-- Added By RiderAmazon Plugin  -->
-<link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/riderAmazon.css" />
+<link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirURL; ?>/css/riderAmazon.css" />
             <?php
         }
 
@@ -764,8 +765,8 @@ EOF;
 
             if (!($asin == '')) {
                 // 前準備
-                $item = $this->_getItem($asin);
-                $htmlCode = $this->_getDate($item);
+                $item = $this->_getItemfromAmazon($asin);
+                $htmlCode = $this->_buildHTML($item);
 
                 return $htmlCode;
             }
@@ -781,7 +782,7 @@ EOF;
          * @return object(SimpleXMLElement) $item
          *
          */
-        function _getItem($asin) {
+        function _getItemfromAmazon($asin) {
 
 // ASINをチェック
             $this->_checkAsin($asin);
@@ -818,58 +819,8 @@ EOF;
             return $item;
 
         }
-        
-        /*                                 * * データを取得 ** */
-        function _getDate($item) {
 
-            $asin = $item['ASIN'];
 
-            $URL = "http://www.amazon.co.jp/o/ASIN/" . $asin . "/" . $this->options['associateTag'];
-            $KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=" . $this->options['associateTag'] . "&keywords=";
-
-            //カバー画像を取得
-
-            if( $this->options['imageCache'] == '1') {
-                $imageUrl = $this->_cacheImage($item);
-            }else {
-                $imageUrl = $this->_getImageUrl($item);
-            }
-
-            // タイプ別処理
-            if ($item->ItemAttributes->ProductGroup == "Book") {
-                $str_creator = __("Author", "$this->i18nDomain");
-                $pubDate = split("-", $item->ItemAttributes->PublicationDate);
-            } else {
-                $str_creator = __("Player", "$this->i18nDomain");
-                $pubDate = split('-', $item->ItemAttributes->ReleaseDate);
-            }
-
-            list( $pubDate['year'], $pubDate['month'], $pubDate['day'] ) = $pubDate;
-
-            if (($item->ItemAttributes->ProductGroup == "DVD") || ($item->ItemAttributes->ProductGroup == "Music")) {
-                $NumOfDiscs = $item->ItemAttributes->NumberOfDiscs;
-                $RunningTime = $item->ItemAttributes->RunningTime;
-                if ($RunningTime > 60) {
-                    $hour = round($RunningTime / 60);
-                    $min = round($RunningTime % 60);
-                    $RunningTime = $hour . __("hour", $this->i18nDomain) . " {$min} " . __("min", $this->i18nDomain);
-                } else {
-                    $RunningTime += " " . __("min", "$this->i18nDomain");
-                }
-            } else {
-                $NumOfDiscs = "";
-                $RunningTime = "";
-            }
-
-            //     var_dump($parsedAmazonXml);
-            var_dump($item);
-
-            // HTMLコードを生成
-
-            $htmlCode = $this->_makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $imageUrl, $str_creator, $KeywordURL, $pubDate, $RunningTime);
-
-            return $htmlCode;
-        }
 
         /**
          * 入力されたASINをチェック
@@ -999,79 +950,126 @@ EOF;
             }
         }
 
-        function _getImageUrl($item) {
+
+        /*** データを取得 ***/
+        function _buildHTML($item) {
 
             $asin = $item->ASIN;
-            $noImageUrl = $this->pluginDirUrl . '/images/printing.png';
 
-            unset($source);
+            $URL = "http://www.amazon.co.jp/o/ASIN/" . $asin . "/" . $this->options['associateTag'];
+            $KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=" . $this->options['associateTag'] . "&keywords=";
+
+            $coverImage = (object) array(
+                            'URL' => '',
+                            'Width' => '',
+                            'Height' => ''
+            );
+echo $this->options['imageCache'] ;
+            $this->options['maxSize'] = '180';
+            if( $this->options['imageCache'] == '1') {
+                $coverImage = $this->_cacheCoverImage($item);
+            }else {
+                $coverImage = $this->_setCoverImage($item);
+            }
+
+            // タイプ別処理
+            if ($item->ItemAttributes->ProductGroup == "Book") {
+                $str_creator = __("Author", "$this->i18nDomain");
+                $pubDate = split("-", $item->ItemAttributes->PublicationDate);
+            } else {
+                $str_creator = __("Player", "$this->i18nDomain");
+                $pubDate = split('-', $item->ItemAttributes->ReleaseDate);
+            }
+
+            list( $pubDate['year'], $pubDate['month'], $pubDate['day'] ) = $pubDate;
+
+            if (($item->ItemAttributes->ProductGroup == "DVD") || ($item->ItemAttributes->ProductGroup == "Music")) {
+                $NumOfDiscs = $item->ItemAttributes->NumberOfDiscs;
+                $RunningTime = $item->ItemAttributes->RunningTime;
+                if ($RunningTime > 60) {
+                    $hour = round($RunningTime / 60);
+                    $min = round($RunningTime % 60);
+                    $RunningTime = $hour . __("hour", $this->i18nDomain) . " {$min} " . __("min", $this->i18nDomain);
+                } else {
+                    $RunningTime += " " . __("min", "$this->i18nDomain");
+                }
+            } else {
+                $NumOfDiscs = "";
+                $RunningTime = "";
+            }
+
+            // HTMLコードを生成
+
+            $htmlCode = $this->_makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $coverImage, $str_creator, $KeywordURL, $pubDate, $RunningTime);
+
+            return $htmlCode;
+        }
+
+
+
+        function _setCoverImage($item) {
 
 // 入手可能なできるだけ大きい画像を取得
-           $source= $this->_selectMaxImage($item);
-
-
-
-// 外部に画像がなかった場合
-            if (empty($source)) {
-
-                return $noImageUrl;
-
-                // 外部に画像があった場合
-            } else {
-
-                list($width, $height, $fileTypes) = getImageSize($source);
-                $longest = ($width > $height) ? $width : $height;
-
-                // この場合も画像はないと判定
-                if (($width == 1) || ($width == 0)) {
-
-                    return $noImageUrl ;
-                }
-
-                // リサイズ値より画像の長辺の方が長い場合はリサイズ
-                if ($longest > $this->resize) {
-                    $percent = round($this->resize / $longest, 2);
-                    $this->width = round($width * $percent);
-                    $this->height = round($height * $percent);
-                } else {
-                    $this->width = $width;
-                    $this->height = $height;
-                }
+            $coverImage = $this->_selectMaxImage($item);
+            if(empty($coverImage->URL)) {
+                $coverImage = $this->_setNoImage();
             }
-
-            return $source;
+            $aspect = $coverImage->Width / $coverImage->Height;
+            if($coverImage->Width > $coverImage->Height) {
+                $coverImage->Width = $this->options['maxSize'];
+                $coverImage->Height = round( 1/$aspect * $this->options['maxSize']);
+            }else {
+                $coverImage->Height = $this->options['maxSize'];
+                $coverImage->Width = round( $aspect * $this->options['maxSize']);
+            }
+            return $coverImage;
         }
 
 
-        function  _selectMaxImage($item){
-$this->options['maxSize'] = '161';
-           $Limg = $item->LargeImage;
-           $Mimg = $item->MediumImage;
-           $Simg = $item->SmallImage;
-             if (!empty($Limg) && ($Limg->Width > $this->options['maxSize'] || $Limg->Height > $this->options['maxSize'] )) {
-                $imageURL = $item->LargeImage->URL;
+        function  _selectMaxImage($item) {
+            unset($image);
+            $Limg = $item->LargeImage;
+            $Mimg = $item->MediumImage;
+            $Simg = $item->SmallImage;
+
+            if (empty($image) && !empty($Limg)) {
+                $image = $item->LargeImage;
+                return $image;
             }
-            if (!empty($Mimg) && ($Mimg->Width > $this->options['maxSize'] || $Mimg->Height > $this->options['maxSize'])) {
-                $imageURL = $item->MediumImage->URL;
+            if ( empty($image) && !empty($Mimg) ) {
+                $image = $item->MediumImage;
+                return $image;
             }
-            if (!empty($Simg) && ($Simg->Width > $this->options['maxSize'] || $Simg->Height > $this->options['maxSize'])) {
-                $imageURL = $item->SmallImage->URL;
+            if (empty($image) && !empty($Simg)) {
+                $image = $item->SmallImage;
+                return $image;
             }
 
-return $imageURL;
         }
+
+
+        function  _setNoImage() {
+
+            $coverImage = (object) array(
+                            'URL' => $this->pluginDirURL . '/images/printing.png',
+                            'Width' => '100',
+                            'Height' => '100'
+            );
+            return $coverImage;
+        }
+
+
 
         /**
-         * カバー画像を表示するコードを生成
+         * cache image
          *
          * @param <type> $item
          * @param <type> $asin
          * @return <type>
          *
          */
-        function _cacheImage($item) {
+        function _cacheCoverImage($item) {
             $asin = $item['ASIN'];
-            $noImageUrl = $this->pluginDirUrl . '/images/printing.png';
 
             // 1フォルダにキャッシュする容量が大きくなりすぎないように3つのフォルダに分ける
             switch (substr($asin, 0, 1)) {
@@ -1087,54 +1085,20 @@ return $imageURL;
 
 
             // カバー画像のパス
-            $img_path = $this->pluginDir . "/cache/img/" . $path . "/" . $asin . ".jpg";
-            $img_url = $this->pluginDirUrl . "/cache/img/" . $path . "/" . $asin . ".jpg";
-
-            unset($source);
+            $cacheImagePath = $this->pluginDir . "/cache/img/" . $path . "/" . $asin . ".jpg";
+            $cacheImageURL = $this->pluginDirURL . "/cache/img/" . $path . "/" . $asin . ".jpg";
 
             // キャッシュされた画像の設定
-            if (file_exists($img_url)) {
-                list($this->width, $this->height) = getImageSize($img_url);
+            if (file_exists($cacheImageURL)) {
+                list($coverImage->Width, $coverImage->Height) = getImageSize($cacheImageURL);
+                $coverImage->URL = $cacheImageURL;
+
                 // キャッシュがない場合、画像を取得して設定
             } else {
-
+                unset($source);
                 // 入手可能なできるだけ大きい画像を取得
-
-                if (!empty($item->LargeImage->URL)) {
-                    $source = $item->LargeImage->URL;
-                } elseif (!empty($item->MediumImage->URL)) {
-                    $source = $item->MediumImage->URL;
-                } elseif (!empty($item->SmallImage->URL)) {
-                    $source = $item->SmallImage->URL;
-                }
-
-                // 外部に画像がなかった場合
-                if (empty($source)) {
-
-                    return $noImageUrl;
-
-                    // 外部に画像があった場合
-                } else {
-
-                    list($width, $height, $fileTypes) = getImageSize($source);
-                    $longest = ($width > $height) ? $width : $height;
-
-                    // この場合も画像はないと判定
-                    if (($width == 1) || ($width == 0)) {
-
-                        return $noImageUrl;
-                    }
-
-                    // リサイズ値より画像の長辺の方が長い場合はリサイズ
-                    if ($longest > $this->resize) {
-                        $percent = round($this->resize / $longest, 2);
-                        $this->width = round($width * $percent);
-                        $this->height = round($height * $percent);
-                    } else {
-                        $this->width = $width;
-                        $this->height = $height;
-                    }
-                }
+                $source = $this->_selectMaxImage($item);
+                list($width, $height, $fileTypes) = getimagesize($source);
 
                 // 画像の読み込み
                 switch ($fileTypes) {
@@ -1144,24 +1108,33 @@ return $imageURL;
                         break;
                     case "1": $bg = ImageCreateFromGIF($source);
                         break;
-                    default : return $noImageUrl;
+                    default : return $this->_setNoImage();
+                }
+
+                $aspect = $source->Width / $source->Height;
+                if($source->Width > $source->Height) {
+                    $source->Width = $this->options['maxSize'];
+                    $source->Height = round( 1/$aspect * $this->options['maxSize']);
+                }else {
+                    $source->Height = $this->options['maxSize'];
+                    $source->Width = round( $aspect * $this->options['maxSize']);
                 }
 
                 // 画像のリサイズ
-                $im = ImageCreateTrueColor($this->width, $this->height) or die("Cannot create image");
-                ImageCopyResampled($im, $bg, 0, 0, 0, 0, $this->width, $this->height, $width, $height);
+                $im = ImageCreateTrueColor($width, $height) or die("Cannot create image");
+                ImageCopyResampled($im, $bg, 0, 0, 0, 0, $source->Width, $source->Height, $width, $height);
 
                 // ファイルのキャッシュとメモリキャッシュの廃棄
-                ImageJPEG($im, $img_path, 80);
+                ImageJPEG($im, $cacheImagePath, 80);
                 ImageDestroy($bg);
                 ImageDestroy($im);
             }
 
-            return $img_url;
+            return $coverImage;
         }
 
         /*                                 * * Amazonコードを生成 ** */
-        function _makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $imageUrl, $str_creator, $KeywordURL, $pubDate, $RunningTime) {
+        function _makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $coverImage, $str_creator, $KeywordURL, $pubDate, $RunningTime) {
 
             $htmlCode = "\n";
 
@@ -1182,15 +1155,9 @@ return $imageURL;
 
             // カバー画像
             $htmlCode .= '<div class="image">';
-            $htmlCode .= '<a href="' . $URL . '" class="url" ';
-            $htmlCode .= 'title="Amazon.co.jp: ">';
-
-            $htmlCode = '<img src="' . $imageUrl . '" ';
-            $htmlCode .= 'width="' . $this->width . '" height="' . $this->height . '"';
-            $htmlCode .= 'class="photo" ';
-            //            $htmlCode .= 'class="photo reflect rheight20 ropacity40" ';
-            $htmlCode .= 'alt="' . $item->ItemAttributes->Title . __(" - cover art", "$this->i18nDomain") . '" />';
-            $htmlCode . "</a>";
+            $htmlCode .= '<a href="' . $URL . '" class="url" title="Amazon.co.jp: ">';
+            $htmlCode .= '<img src="' . $coverImage->URL . '" width="' . $coverImage->Width . '" height="' . $coverImage->Height . '" class="photo" alt="' . $item->ItemAttributes->Title .'" />';
+            $htmlCode .= "</a>";
             $htmlCode .= "</div>";
 
             // 購入者情報
@@ -1199,7 +1166,9 @@ return $imageURL;
 
             $htmlCode .= '<div class="buttons">';
             // 詳細情報を見るボタン
-            $htmlCode .=$this->showDetailButton($item, $URL);
+            $htmlCode .= '<a href="' . $URL . '" title="Amazon.co.jp:' . $item->ItemAttributes->Title . '" class="showdetailbutton" >';
+            $htmlCode .= '<img src="' . $this->pluginDirURL . '/images/' . $this->showDetailButtonImg . '" title="amazon.co.jpで詳細情報を見る" alt="amazon.co.jpで詳細情報を見る"/></a>';
+
             // カートに入れるボタン
             $htmlCode .= $this->showAddCartButton($asin);
             $htmlCode .= '</div>';
@@ -1219,6 +1188,7 @@ return $imageURL;
                 $htmlCode .= "</td>";
                 $htmlCode .= "</tr>";
             }//製作者情報がなければ
+
             elseif (!empty($item->ItemAttributes->Artist)) {
                 $htmlCode .= "<tr>";
                 $htmlCode .= "<th>Artist</th>";
@@ -1298,21 +1268,7 @@ return $imageURL;
             return $actionData;
         }
 
-        /**
-         * 詳細を見るボタン
-         *
-         * @param <type> $item
-         * @param <type> $URL
-         * @return <type> $tmpCode
-         *
-         */
-        function showDetailButton($item, $URL) {
 
-            $tmpCode = '<a href="' . $URL . '" title="Amazon.co.jp:' . $item->ItemAttributes->Title . '" class="showdetailbutton" >';
-            $tmpCode .='<img src="' . $this->pluginDirUrl . '/images/' . $this->showDetailButtonImg . '" title="amazon.co.jpで詳細情報を見る" alt="amazon.co.jpで詳細情報を見る"/></a>';
-
-            return $tmpCode;
-        }
 
         /**
          * カートに入れるボタンを表示するコードを返す
@@ -1330,7 +1286,7 @@ return $imageURL;
             $tmpCode .= '<input name="SubscriptionId" value="' . $this->options['accessKeyId'] . '" type="hidden" />';
 
             $tmpCode .= '<input name="submit.add-to-cart" type="image" ';
-            $tmpCode .= 'src="' . $this->pluginDirUrl . '/images/' . $this->addCartButtonImg . '" ';
+            $tmpCode .= 'src="' . $this->pluginDirURL . '/images/' . $this->addCartButtonImg . '" ';
             $tmpCode .= 'alt="' . __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain") . '" ';
             $tmpCode .= 'title="' . __("Take this item into your cart in amazon.co.jp", "$this->i18nDomain") . '" />';
             $tmpCode .= '</form>';
@@ -1357,16 +1313,16 @@ return $imageURL;
             }
 
             $tmpCode .= ( ($discounted == true) ? "<del>" : "");
-
+//var_dump($item->ItemAttributes->ListPrice->Amount);
             // 定価
             $tmpCode .= ( $item->ItemAttributes->ListPrice->CurrencyCode == "USD") ?
-                    "$ " . number_format($item->ItemAttributes->ListPrice->Amount) : number_format($item->ItemAttributes->ListPrice->Amount) . __("yen", "$this->i18nDomain");
+                    "$ " . number_format((double)$item->ItemAttributes->ListPrice->Amount) : number_format((double)$item->ItemAttributes->ListPrice->Amount) . __("yen", "$this->i18nDomain");
 
             // 割引していればその価格を表示
             if ($discounted == true) {
                 $tmpCode .= "</del> ";
                 $tmpCode .= ( $item->ItemAttributes->ListPrice->CurrencyCode == "USD") ?
-                        "$ " . number_format($item->OfferSummary->LowestNewPrice->Amount) : number_format($item->OfferSummary->LowestNewPrice->Amount) . __("yen", "$this->i18nDomain");
+                        "$ " . number_format((double)$item->OfferSummary->LowestNewPrice->Amount) : number_format((double)$item->OfferSummary->LowestNewPrice->Amount) . __("yen", "$this->i18nDomain");
                 $CutRate = round(( 1 - ( $item->OfferSummary->LowestNewPrice->Amount / $item->ItemAttributes->ListPrice->Amount )) * 100);
                 $tmpCode .= ( ($CutRate > 0) ? " (<em> {
                         $CutRate}%</em> OFF)" : "");
@@ -1390,8 +1346,7 @@ return $imageURL;
 
             if ($item->ItemAttributes->ProductGroup == "Book") {
                 $Creator = $item->ItemAttributes->Author;
-                // var_dump($item->ItemAttributes->Author);
-                // var_dump($item->ItemAttributes->Creator);
+
             } else {
 
                 $Creator = $item->ItemAttributes->Creator;
@@ -1428,7 +1383,7 @@ return $imageURL;
             $this->_rideramazonDailyEvent();
             //      wp_schedule_event(time(), 'daily', '_rideramazonDailyEvent');
             //  テスト用 毎時
-            wp_schedule_event(time(), 'hourly', '_rideramazonDailyEvent');
+         //   wp_schedule_event(time(), 'hourly', '_rideramazonDailyEvent');
         }
 
         /*
@@ -1438,9 +1393,9 @@ return $imageURL;
         */
         function _rideramazonDailyEvent() {
 
-            $this->_getReport();
-            $this->_saveReport();
-            $this->_makeTable();
+           $this->_getReport();
+        //    $this->_saveReport();
+        //    $this->_makeTable();
         }
 
         /*
@@ -1502,9 +1457,9 @@ return $imageURL;
             $client = new HTTP_Client();
 
             // ログイン画面
-            $client->get(" {
-                    $host}/associates/login/login.html");
+            $client->get("{$host}/associates/login/login.html");
             $response = $client->currentResponse();
+            var_dump($response);
             // ログイン
             $client->post("{$host}/flex/sign-in/select.html", $loginQueries, true);
             $response = $client->currentResponse();
@@ -1513,8 +1468,7 @@ return $imageURL;
             $response = $client->currentResponse();
 
             if (!empty($response['body'])) {
-
-                $this->report = $response['body'];
+           //     $this->report = $response['body'];
                 return true;
             } else {
 
@@ -1566,13 +1520,13 @@ return $imageURL;
 
             if (!empty($request->orders)) {
 
-                $code .= '<div class="orders" ><img src="' . $this->pluginDirUrl . '/images/buys.png" width="16" height="16" alt="購入数" /> ' .
+                $code .= '<div class="orders" ><img src="' . $this->pluginDirURL . '/images/buys.png" width="16" height="16" alt="購入数" /> ' .
                         "<strong>{$request->orders}人</strong>が購入しました</div>";
             }
 
             if (!empty($request->asin)) {
 
-                $code .= '<div class="clicks"><img src="' . $this->pluginDirUrl . '/images/clicks.png" width="16" height="16" alt="クリック数" /> ' .
+                $code .= '<div class="clicks"><img src="' . $this->pluginDirURL . '/images/clicks.png" width="16" height="16" alt="クリック数" /> ' .
                         "このサイトで<em>{$request->clicks}人</em>がクリック</div> ";
             }
 
