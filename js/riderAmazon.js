@@ -34,7 +34,7 @@ RiderAmazon.prototype = {
         jQuery.post(
             jQuery("#riderAmazon_url").attr("value") + "/wp-admin/admin-ajax.php",
             {
-                action: "riderAmazonAjax",
+                action: "riderAmazon_ItemSearch",
                 'cookie': encodeURIComponent(document.cookie),
                 'keyword': jQuery("#riderAmazon_keyword").attr("value"),
                 'searchIndex': jQuery("#riderAmazon_searchIndex option:selected").attr("value"),
@@ -45,7 +45,7 @@ RiderAmazon.prototype = {
 
                     var amazonResult = eval("("+data+")");
                     //                    $resultArray = array(
-                    //                'htmlResult' => $htmlResult,
+                    //                'itemTableHTML' => $itemTableHTML,
                     //                'totalPages' => $totalPages,
                     //                     'error' => $error
                     //            );
@@ -56,25 +56,25 @@ RiderAmazon.prototype = {
 
                     }
                     else if ( amazonResult.error.Code == 'AWS.ECommerceService.NoExactMatches' ){
-                        amazonResult.htmlResult = '<div class ="error" >該当する商品が見つかりませんでした。カテゴリーやキーワードをご確認ください。</div>';
+                        amazonResult.itemTableHTML = '<div class ="error" >該当する商品が見つかりませんでした。カテゴリーやキーワードをご確認ください。</div>';
                         page = "0/0";
                     }
                     else if ( amazonResult.error.Code == 'AWS.MinimumParameterRequirement' ){
                          jQuery("#riderAmazon_keyword").effect("highlight", {color: "#c00"}, 2000);
 
-                        amazonResult.htmlResult = '<div class ="error" >検索キーワードをご入力ください。</div>';
+                        amazonResult.itemTableHTML = '<div class ="error" >検索キーワードをご入力ください。</div>';
                         page = "0/0";
                     }
                     else if ( amazonResult.error.Code == 'AWS.ParameterOutOfRange' ){
-                        amazonResult.htmlResult = '<div class ="error" >全商品から検索した場合、5ページまでしか表示できません。</div>';
+                        amazonResult.itemTableHTML = '<div class ="error" >全商品から検索した場合、5ページまでしか表示できません。</div>';
                         page = "0/0";
                     }
                     else{
-                        amazonResult.htmlResult =  '<div class ="error" >' + amazonResult.error.Message + '</div>';
+                        amazonResult.itemTableHTML =  '<div class ="error" >' + amazonResult.error.Message + '</div>';
                         page = "0/0";
                     }
                     //   console.log(amazonResult.totalPages);
-                    jQuery("#riderAmazon_result").html(amazonResult.htmlResult);
+                    jQuery("#riderAmazon_result").html(amazonResult.itemTableHTML);
                     jQuery("#riderAmazon_resultTable").slideDown(1000);
                     jQuery("#riderAmazon_totalPages").attr("value", amazonResult.totalPages);
                   
@@ -135,7 +135,6 @@ var rideramazon = new RiderAmazon();
 jQuery(document).ready(function(){
     //$(function(){
     var rideramazon = new RiderAmazon();
-   // rideramazon.riderAjax();
 
     jQuery("#riderAmazon_search").click(function(){
         rideramazon.selectSearchType('first');
@@ -148,10 +147,8 @@ jQuery(document).ready(function(){
     });
      jQuery("#riderAmazon_keyword").keydown(function(event){
         rideramazon.key(event);
-
-
-
     });
+    
 });
 
 

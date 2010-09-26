@@ -21,9 +21,9 @@ RiderAmazonAdminOption.prototype = {
 
 jQuery(document).ready(function(){
     //$(function(){
-    var rideramazon = new RiderAmazonAdminOption();
+    var riderAmazonAdminOption = new RiderAmazonAdminOption();
 
-  rideramazon.fadeInMessage();
+  riderAmazonAdminOption.fadeInMessage();
   
 
 });

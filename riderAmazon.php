@@ -4,7 +4,7 @@
   Plugin URI: http://retujyou.com/rideramazon/
   Description: 投稿画面でASINの検索。本文中に[amazon]ASIN[/amazon]を記入でAmazon.co.jpから情報を取得。
   Author: rui_mashita
-  Version: 0.1.1
+  Version: 0.2.0
   Author URI: http://retujyou.com
   Special Thanks: Tomokame (http://tomokame.moo.jp/)
   Special Thanks: Keith Devens.com (http://keithdevens.com/software/phpxml)
@@ -56,14 +56,14 @@ if (!class_exists('RiderAmazon')) {
 
     class RiderAmazon {
 
-        // サムネイル変換の際、リサイズ後の長辺の最大値を記入
-        var $resize = 200;
+        var $width;
+        var $height;
         //詳細を表示ボタンの画像
         var $showDetailButtonImg = "showdetail119.png";
         //カートに入れるボタンの画像
         var $addCartButtonImg = "gocart119.png";
         // 国際化リソースドメイン
-        var $i18nDomain = 'RiderAmazon';
+        var $i18nDomain = 'riderAmazon';
         // RiderAmazon
         var $pluginDirName;
         // /path/to/RiderAmazon
@@ -73,14 +73,7 @@ if (!class_exists('RiderAmazon')) {
         // wp_opions table option_name column
         var $optionName = "riderAmazonOption";
         var $options;
-        var $defaultOptions = array(
-                'associateTag' => 'retujyou-22',
-                'accessKeyId' => '',
-                'secretAccessKey' => '',
-                'associateEmail' => '',
-                'associatePassword' => '',
-                'cache' => ''
-        );
+        var $defaultOptions;
 
         /*
          * コンストラクタ
@@ -99,28 +92,30 @@ if (!class_exists('RiderAmazon')) {
 // http://sample.com/path/to/RiderAmazon
             $this->pluginDirUrl = WP_PLUGIN_URL . '/' . $this->pluginDirName;
 
- //Localization
+            //Localization
             $locale = get_locale();
             load_plugin_textdomain($this->i18nDomain, $this->pluginDir. '/locales/', $this->pluginDirName. '/locales/' );
 
-//load_plugin_textdomain($this->i18nDomain, 'wp-content/plugins/RiderAmazon' );
 // load $this->optinos from DB
+            $this->defaultOptions = array(
+                    'associateTag' => __('retujyou-22', $this->i18nDomain),
+                    'accessKeyId' => '',
+                    'secretAccessKey' => '',
+                    'associateEmail' => '',
+                    'associatePassword' => '',
+                    'xmlCache' => '',
+                    'imageCache' => '',
+                    'maxSize' => '111'
+            );
             $this->_loadOptions();
 
-add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_addPluginActionLinks'));
-// admin option hooks
-
+// add action link
+            add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_addPluginActionLinks'));
+// admin option page hooks
             add_action('admin_menu', array(&$this, '_addAdminOptionPage'));
-          
-
-
 // admin post/page hooks
-            add_action('admin_menu', array(&$this, '_addCustomBox'));
-
-//   add_action('admin_print_styles', array(&$this, '_addAdminPrintStyles'));
-            add_action('admin_print_scripts', array(&$this, '_addAdminPrintScripts'));
-            add_action('wp_ajax_riderAmazonAjax', array(&$this, '_riderAmazonAjax'));
-
+            add_action('admin_menu', array(&$this, '_addMetaBox'));
+            add_action('wp_ajax_riderAmazon_ItemSearch', array(&$this, '_ajaxItemSearch'));
 
 // post hooks
             add_shortcode('amazon', array(&$this, 'replaceCode'));
@@ -133,11 +128,8 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
 
 
 
-          echo wp_get_schedule('_rideramazonDailyEvent');
+            //    echo wp_get_schedule('_rideramazonDailyEvent');
         }
-
-
-
 
         /**
          * Retrieves the plugin's options from the database.
@@ -197,7 +189,7 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
         }
 
         function _addPluginActionLinks($actions) {
-            $link = '<a href="'.get_bloginfo( 'wpurl' ).'/wp-admin/plugins.php.php?page='.basename(__FILE__).'" >'. __('Settings') .'</a>';
+            $link = '<a href="'.get_bloginfo( 'wpurl' ).'/wp-admin/plugins.php?page='.basename(__FILE__).'" >'. __('Settings') .'</a>';
             array_unshift($actions, $link);
             return $actions;
         }
@@ -211,13 +203,14 @@ add_filter( 'plugin_action_links_'. plugin_basename(__FILE__), array(&$this, '_a
 
             $optionPage = add_plugins_page(
                     __('Rider Amazon Option', $this->i18nDomain),
-                    __('RiderAmazon', $this->i18nDomain),
+                    __('Rider Amazon', $this->i18nDomain),
                     'activate_plugins',
                     basename(__FILE__),
                     array(&$this, '_adminOptionPage')
             );
 
-add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPrintStyles'));
+
+            add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPrintStyles'));
             add_action('admin_print_scripts-' . $optionPage, array(&$this, '_addAdminOptionPrintScripts'));
             add_action('admin_notices', array(&$this, "_addAdminNotices"));
         }
@@ -436,7 +429,7 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
 <div id="riderAmazonAdminOptionUpdated" class="updated fade" >
     <p><?php _e('Updated Rider Amazon Options' , $this->i18nDomain); ?></p>
 </div>
-<?php
+            <?php
             endif;
 
             if ("resetOption" == @$_POST['optionMethod']) {
@@ -466,22 +459,63 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
                                  *
                                  * @return none
         */
-        function _addCustomBox() {
+        function _addMetaBox() {
+            add_meta_box('rideramazondiv', __('RiderAmazon ItemSearch', $this->i18nDomain), array(&$this, '_metaBox'), 'post', 'normal');
+            add_meta_box('rideramazondiv', __('RiderAmazon ItemSearch', $this->i18nDomain), array(&$this, '_metaBox'), 'page', 'normal');
 
-            add_meta_box('rideramazondiv', __('RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'post', 'normal');
-            add_meta_box('rideramazondiv', __('RiderAmazon 商品検索'), array(&$this, '_dbxPost'), 'page', 'normal');
+            add_action('admin_print_styles', array(&$this, '_addAdminPrintStyles'));
+            add_action('admin_print_scripts', array(&$this, '_addAdminPrintScripts'));
+
         }
 
-        /**
-         * ヘッダーにCSSを登録
-         *
-         *
-         * @return none
-         */
-        function _addWpHead() {
+        /*
+* 記事作成画面のドッキングボックス
+*
+* @return none
+        */
+        function _metaBox() {
+            global $post;
+
+            $categories = array(
+                    __('全商品', $this->i18nDomain) => 'All',
+                    __('本', $this->i18nDomain) => 'Books',
+                    __('洋書', $this->i18nDomain) => 'ForeignBooks',
+                    __('エレクトロニクス', $this->i18nDomain) => 'Electronics',
+                    __('ホーム＆キッチン', $this->i18nDomain) => 'Kitchen',
+                    __('ミュージック', $this->i18nDomain) => 'Music',
+                    __('ビデオ', $this->i18nDomain) => 'Video',
+                    __('ソフトウェア', $this->i18nDomain) => 'Software',
+                    __('ゲーム', $this->i18nDomain) => 'VideoGames',
+                    __('おもちゃ＆ホビー', $this->i18nDomain) => 'Toys',
+                    __('スポーツ＆アウトドア', $this->i18nDomain) => 'SportingGoods',
+                    __('ヘルス＆ビューティー', $this->i18nDomain) => 'HealthPersonalCare',
+                    __('時計', $this->i18nDomain) => 'Watches',
+                    __('ベビー＆マタニティー', $this->i18nDomain) => 'Baby',
+                    __('アパレル＆シューズ', $this->i18nDomain) => 'Apparel',
+            );
             ?>
-<!-- Added By RiderAmazon Plugin  -->
-<link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/riderAmazon.css" />
+
+<input type="hidden" name="riderAmazon_url" id="riderAmazon_url" value="<?php echo get_bloginfo('wpurl'); ?>" />
+<input type="hidden" name="riderAmazon_dir" id="riderAmazon_dir" value="<?php echo ABSPATH . '/wp-includes/'; ?>" />
+<input type="hidden" name="riderAmazon_totalPages" id="riderAmazon_totalPages" value="0" />
+<input type="hidden" name="riderAmazon_currentPage" id="riderAmazon_currentPage" value="1" />
+<input type="hidden" name="riderAmazon_lastSearchIndex" id="riderAmazon_lastSearchIndex" value="" />
+<input type="hidden" name="riderAmazon_lastKeyword" id="riderAmazon_lastKeyword" value="" />
+<select name="riderAmazon_searchIndex" id="riderAmazon_searchIndex" >
+                <?php
+                foreach ($categories as $key => $value) {
+                    print "\t" . '<option value="' . $value . '">' . $key . "</option>\n";
+                }
+                ?>
+</select>
+<input type="text" name="riderAmazon_keyword" id="riderAmazon_keyword" value="" title="検索するキーワードを入力します" />
+<input type="button" name="riderAmazon_search" id="riderAmazon_search" class="button" value="検索" title="検索を実行します" />
+<input type="button" name="riderAmazon_toPreviousPage" id="riderAmazon_toPreviousPage" class="button" value="前のページへ" />
+<span name="riderAmazon_page" id="riderAmazon_page">0/0</span>
+<input type="button" name="riderAmazon_toNextPage" id="riderAmazon_toNextPage" class="button" value="次のページへ" />
+
+<div name="riderAmazon_result" id="riderAmazon_result"></div>
+
             <?php
         }
 
@@ -492,7 +526,6 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
          * @return none
          */
         function _addAdminPrintScripts() {
-
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-core');
             wp_enqueue_script('jquery-effects-core', $this->pluginDirUrl . '/js/jquery/effects.core.js', array('jquery', 'jquery-ui-core'), false);
@@ -506,11 +539,8 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
          *
          * @return void
          */
-        function _addAdminHead() {
-            ?>
-<link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/riderAmazonAdmin.css" />
-
-            <?php
+        function _addAdminPrintStyles() {
+            wp_enqueue_style('riderAmazonAdmin', $this->pluginDirUrl . '/css/riderAmazonAdmin.css');
         }
 
         /**
@@ -519,8 +549,7 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
          *
          * @return
          */
-        function _riderAmazonAjax() {
-
+        function _ajaxItemSearch() {
             // Amazon Product Advertising API 用パラメータ作成 jsから受けとった情報を格納
             $amazonParam = array(
                     'operation' => 'ItemSearch',
@@ -537,7 +566,7 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
             $parsedAmazonXml = simplexml_load_string($amazonXml);
 
             if ($parsedAmazonXml === false) {
-                die("alert('XMLパースエラーです')");
+                die("alert('XML parse error')");
             }
 
 // エラー表示用
@@ -548,22 +577,17 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
                 $error = $parsedAmazonXml->Error;
             }
             $totalPages = (string) $parsedAmazonXml->Items->TotalPages;
-            $htmlResult = $this->_getHtmlResult($parsedAmazonXml);
+            $itemTableHTML = $this->_buildItemTableHTML($parsedAmazonXml);
 
 // js に返すパラメータを作成
             $resultArray = array(
-                    'htmlResult' => $htmlResult,
+                    'itemTableHTML' => $itemTableHTML,
                     'totalPages' => $totalPages,
                     'error' => $error
             );
 
             $resultJson = json_encode($resultArray);
-//$json = json_encode($parsedAmazonXml);
-//      var_dump($totalPages);
-//            var_dump( $currentPage);
-//    var_dump($isValid);
-//
-//        echo $currentPage;
+
             echo $resultJson;
 
             die();
@@ -619,7 +643,7 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
 // canonical string を作成します
             $canonical_string = '';
             foreach ($params as $k => $v) {
-                $canonical_string .= '&' . $this->rfc3986_urlencode($k) . '=' . $this->rfc3986_urlencode($v);
+                $canonical_string .= '&' . $this->_rfc3986Urlencode($k) . '=' . $this->_rfc3986Urlencode($v);
             }
             $canonical_string = substr($canonical_string, 1);
 
@@ -628,80 +652,18 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
             $string_to_sign = 'GET' . "\n" . $parsed_url['host'] . "\n" . $parsed_url['path'] . "\n" . $canonical_string;
             $signature = base64_encode(hash_hmac('sha256', $string_to_sign, $secret_access_key, true));
 
-            $url = $api_interface . '?' . $canonical_string . '&Signature=' . $this->rfc3986_urlencode($signature);
+            $url = $api_interface . '?' . $canonical_string . '&Signature=' . $this->_rfc3986Urlencode($signature);
 
-// SnoopyによるURLリクエストを生成
-            require_once( ABSPATH . WPINC . '/class-snoopy.php' );
-            $Snoopy = new Snoopy();
-//    $Snoopy->agent = 'WordPress/' . $wp_version;
-            $Snoopy->read_timeout = 2;
-
-            // リクエスト
-            if (!$Snoopy->fetch($url)) {
-                die("alert('amazonに接続できませんでした')");
+            // wp-includes/http.php
+            $response = wp_remote_request($url);
+            if(is_wp_error($response)) {
+                $error = 'Amazon conection error. '. 'message: '.$response['response']['message'].'. code: '.$response['response']['code'];
+                die('alert("'.$error.'")');
             }
-
-            $amazonXml = $Snoopy->results;
+            $amazonXml = $response['body'];
             return $amazonXml;
         }
 
-        /**
-         *
-         * AmazonXMLをキャッシュしてパースしたxmlを返す
-         *
-         *
-         * @param <type> $asin
-         * @return <type> $parsedAmazonXm
-         *
-         */
-        function _cacheAmazonXml($asin) {
-
-            $parsedAmazonXml = '';
-            // キャッシュ作成パッケージを読み込み
-
-            /**
-             * キャッシュの設定
-             * "lifeTime"は秒単位です、ここでは3日に設定しています
-             */
-            $options = array(
-                    "cacheDir" => $this->pluginDir . "/cache/xml/",
-                    "lifeTime" => 3 * 60 * 60 * 24,
-                    "automaticCleaningFactor" => 0
-            );
-
-            require_once("cache/Lite.php");
-            $Cache = new Cache_Lite($options);
-
-            // キャッシュがあるかチェック
-            $xmlCache = $Cache->get($asin);
-            if ($xmlCache) { // あればそれを利用
-                $parsedAmazonXml = simplexml_load_string($xmlCache);
-                return $parsedAmazonXml;
-            } else {
-
-                // Amazon Product Advertising API 用パラメータ作成
-                $amazonParam = array(
-                        'operation' => 'ItemLookup',
-                        'itemId' => $asin,
-                        'responseGroup' => 'Medium'
-                );
-
-                // Amazon Product Advertising API にアクセスして XML を返してもらう
-                $amazonXml = $this->_fetchAmazonXml($amazonParam);
-
-                // Amazon Webサービスが落ちているなどしてXMLが返ってこない場合
-                if ($parsedAmazonXml === false) {
-                    return false;
-                } else {
-                    // XMLが返ってきたら利用
-                    // XMLをキャッシュ
-                    $Cache->save($amazonXml, $asin);
-
-                    $parsedAmazonXml = simplexml_load_string($amazonXml);
-                    return $parsedAmazonXml;
-                }
-            }
-        }
 
         /**
          * RFC3986に合わせ、チルダを除外したURLエンコードをする
@@ -710,7 +672,7 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
          * @param $string
          * @return
          */
-        function rfc3986_urlencode($string) {
+        function _rfc3986Urlencode($string) {
             $string = str_replace('%7E', '~', rawurlencode($string));
             return $string;
         }
@@ -723,18 +685,20 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
          *
          *
          */
-        function _getHtmlResult($parsedAmazonXml) {
+        function _buildItemTableHTML($parsedAmazonXml) {
 
             $items = $parsedAmazonXml->Items->Item;
+            $itemTableHTML = '';
 
-            if (isset($items)) {
+            if (isset($items)):
 
                 $itemPage = (int) $parsedAmazonXml->Items->Request->ItemSearchRequest->ItemPage;
                 $number = ( ($itemPage - 1) * 10) + 1;
+                $class = '';
 
-                $HTMLResult =
-                        '<div id="riderAmazon_resultTable">
-                                       <table >
+                $itemTableHTML = <<< EOF
+                        <div id="riderAmazon_resultTable">
+                                       <table  class="widefat">
                                          <thead>
                                            <tr>
                                              <th>No.</th>
@@ -742,94 +706,51 @@ add_action('admin_print_styles-' . $optionPage, array(&$this, '_addAdminOptionPr
                                              <th class="titleAndCode">Title & code</th>
                                            </tr>
                                          </thead>
-                                         <tbody>'
-                ;
-
+                                         <tbody>
+EOF;
 
                 foreach ($items as $item) {
-
-                    $HTMLResult .= <<< EOF
-
-                                                              <tr>
+                    $class = ($number % 2 == 0 ) ? 'alt' : '';
+                    $itemTableHTML .= <<< EOF
+                                                              <tr class="{$class}">
                                                                 <th class="number" >
-                            $number.
+                            {$number}.
                                                                 </th>
                                                                 <td class="image" >
                                                                   <a href="{$item->DetailPageURL}"><img src="{$item->SmallImage->URL}" alt="{$item->ASIN}" /></a>
                                                                 </td>
                                                                 <td class="titleAndCode" >
                                                                   <a href="{$item->DetailPageURL}"> {$item->ItemAttributes->Title}</a>
-                                                              <br /><br />
+                                                                <br /><br />
                                                                   <code title='AmazonLink コード'>[amazon]{$item->ASIN}[/amazon]</code>
-               </td>
-               </tr>
+                                                                </td>
+                                                              </tr>
 
 EOF;
-
-
-
                     $number++;
                 }
 
-                $HTMLResult .= <<< EOF
+                $itemTableHTML .= <<< EOF
                                   </tbody>
-               </table>
-               </div>
+                                 </table>
+                                </div>
 EOF;
-            }
 
-            return $HTMLResult;
+            endif;
+
+            return $itemTableHTML;
         }
 
-        /*
-                                 * 記事作成画面のドッキングボックス
-                                 *
-                                 * @return none
-        */
-
-        function _dbxPost() {
-            global $post;
-
-            $categories = array(
-                    __('全商品', $this->i18nDomain) => 'All',
-                    __('本', $this->i18nDomain) => 'Books',
-                    __('洋書', $this->i18nDomain) => 'ForeignBooks',
-                    __('エレクトロニクス', $this->i18nDomain) => 'Electronics',
-                    __('ホーム＆キッチン', $this->i18nDomain) => 'Kitchen',
-                    __('ミュージック', $this->i18nDomain) => 'Music',
-                    __('ビデオ', $this->i18nDomain) => 'Video',
-                    __('ソフトウェア', $this->i18nDomain) => 'Software',
-                    __('ゲーム', $this->i18nDomain) => 'VideoGames',
-                    __('おもちゃ＆ホビー', $this->i18nDomain) => 'Toys',
-                    __('スポーツ＆アウトドア', $this->i18nDomain) => 'SportingGoods',
-                    __('ヘルス＆ビューティー', $this->i18nDomain) => 'HealthPersonalCare',
-                    __('時計', $this->i18nDomain) => 'Watches',
-                    __('ベビー＆マタニティー', $this->i18nDomain) => 'Baby',
-                    __('アパレル＆シューズ', $this->i18nDomain) => 'Apparel',
-            );
+        /**
+         * ヘッダーにCSSを登録
+         *
+         *
+         * @return none
+         */
+        function _addWpHead() {
             ?>
-
-<input type="hidden" name="riderAmazon_url" id="riderAmazon_url" value="<?php echo get_bloginfo('wpurl'); ?>" />
-<input type="hidden" name="riderAmazon_dir" id="riderAmazon_dir" value="<?php echo ABSPATH . '/wp-includes/'; ?>" />
-<input type="hidden" name="riderAmazon_totalPages" id="riderAmazon_totalPages" value="0" />
-<input type="hidden" name="riderAmazon_currentPage" id="riderAmazon_currentPage" value="1" />
-<input type="hidden" name="riderAmazon_lastSearchIndex" id="riderAmazon_lastSearchIndex" value="" />
-<input type="hidden" name="riderAmazon_lastKeyword" id="riderAmazon_lastKeyword" value="" />
-<select name="riderAmazon_searchIndex" id="riderAmazon_searchIndex" >
-                <?php
-                foreach ($categories as $key => $value) {
-                    print "\t" . '<option value="' . $value . '">' . $key . "</option>\n";
-                }
-                ?>
-</select>
-<input type="text" name="riderAmazon_keyword" id="riderAmazon_keyword" value="" title="検索するキーワードを入力します" />
-<input type="button" name="riderAmazon_search" id="riderAmazon_search" class="button" value="検索" title="検索を実行します" />
-<input type="button" name="riderAmazon_toPreviousPage" id="riderAmazon_toPreviousPage" class="button" value="前のページへ" />
-<span name="riderAmazon_page" id="riderAmazon_page">0/0</span>
-<input type="button" name="riderAmazon_toNextPage" id="riderAmazon_toNextPage" class="button" value="次のページへ" />
-
-<div name="riderAmazon_result" id="riderAmazon_result"></div>
-
+<!-- Added By RiderAmazon Plugin  -->
+<link rel="stylesheet" type="text/css" href="<?php echo $this->pluginDirUrl; ?>/css/riderAmazon.css" />
             <?php
         }
 
@@ -839,28 +760,47 @@ EOF;
          * @param $attr,$asinCode
          * @return $htmlCode
          */
-        function replaceCode($attr, $asinCode='') {
+        function replaceCode($attr, $asin='') {
 
-            if (!($asinCode == '')) {
-                $asin = $asinCode;
-
+            if (!($asin == '')) {
                 // 前準備
-                $htmlCode = $this->getData($asin);
-
-
+                $item = $this->_getItem($asin);
+                $htmlCode = $this->_getDate($item);
 
                 return $htmlCode;
             }
+
         }
 
-        /*                                 * * データを取得 ** */
 
-        function getData($asin) {
+        /**
+         *
+         * ASIN から item object を取得
+         *
+         * @param string $asin
+         * @return object(SimpleXMLElement) $item
+         *
+         */
+        function _getItem($asin) {
 
-            // ASINをチェック
+// ASINをチェック
             $this->_checkAsin($asin);
 
-            $parsedAmazonXml = $this->_cacheAmazonXml($asin);
+// Amazon Product Advertising API 用パラメータ作成
+            $amazonParam = array(
+                    'operation' => 'ItemLookup',
+                    'itemId' => $asin,
+                    'responseGroup' => 'Medium'
+            );
+
+            // キャッシュ
+            if( $this->options['xmlChache'] == '1') {
+                $amazonXml = $this->_cacheAmazonXml($amazonParam);
+            }else {
+                $amazonXml = $this->_fetchAmazonXml($amazonParam);
+            }
+
+            $parsedAmazonXml = simplexml_load_string($amazonXml);
 
             // AmazonECSか自分がネットワークから離脱している場合
             if (false === $parsedAmazonXml) {
@@ -873,16 +813,27 @@ EOF;
             }
 
             // 変数の設定
-
-
-
             $item = $parsedAmazonXml->Items->Item;
+
+            return $item;
+
+        }
+        
+        /*                                 * * データを取得 ** */
+        function _getDate($item) {
+
+            $asin = $item['ASIN'];
+
             $URL = "http://www.amazon.co.jp/o/ASIN/" . $asin . "/" . $this->options['associateTag'];
-            $URLMobile = "http://www.amazon.co.jp/gp/aw/rd.html?url=/gp/aw/d.html&lc=msn&dl=1&a=" .
-                    $asin . '&uid=NULLGWDOCOMO&at=' . $this->options['associateTag'];
             $KeywordURL = "http://www.amazon.co.jp/gp/search?ie=UTF8&index=blended&tag=" . $this->options['associateTag'] . "&keywords=";
 
+            //カバー画像を取得
 
+            if( $this->options['imageCache'] == '1') {
+                $imageUrl = $this->_cacheImage($item);
+            }else {
+                $imageUrl = $this->_getImageUrl($item);
+            }
 
             // タイプ別処理
             if ($item->ItemAttributes->ProductGroup == "Book") {
@@ -910,22 +861,307 @@ EOF;
                 $RunningTime = "";
             }
 
-            //カバー画像を取得
-
-            $Image = $this->getCover($item, $asin);
+            //     var_dump($parsedAmazonXml);
+            var_dump($item);
 
             // HTMLコードを生成
 
-            $htmlCode = $this->_makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $Image, $str_creator, $KeywordURL, $pubDate, $RunningTime);
-
-
+            $htmlCode = $this->_makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $imageUrl, $str_creator, $KeywordURL, $pubDate, $RunningTime);
 
             return $htmlCode;
         }
 
-        /*                                 * * Amazonコードを生成 ** */
+        /**
+         * 入力されたASINをチェック
+         *
+         * @param <type> $asin
+         *
+         */
+        function _checkAsin($asin) {
 
-        function _makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $Image, $str_creator, $KeywordURL, $pubDate, $RunningTime) {
+            if (empty($asin)) {
+                $this->errors[] = __("Please set ASIN for Amazon-Linkage Plugin.", "$this->i18nDomain");
+            }
+
+            $asin = preg_replace("/[\- ]/", "", $asin);
+            $length = strlen($asin);
+
+            if (($length != 9) && ($length != 10) && ($length != 13)) {
+                $this->errors[] = __("Please check the length of ASIN (accept only 9, 10, 13 letters one).", "$this->i18nDomain");
+            }
+
+            // ASIN(ここではISBN)を10桁に変換
+            switch ($length) {
+                case "13": $this->ISBN_13to10($asin);
+                    break;
+                case "9" : $this->ISBN_9to10($asin);
+                    break;
+                case "12": $this->ISBN_12to10($asin);
+                    break;
+            }
+        }
+
+        /**
+         * 9桁ISBNにチェックデジットを足す
+         *
+         * @param <type> $asin
+         *
+         */
+        function ISBN_9to10($asin) {
+
+            // 総和を求める
+            for ($digit = 0, $i = 0; $i < 9; $i++) {
+                $digit += $asin {
+                        $i} * (10 - $i);
+            }
+
+            // 11から総和を11で割った余りを引く（10の場合はX, 11の場合は0に）
+            $digit = (11 - ($digit % 11)) % 11;
+            if ($digit == 10) {
+                $digit = "X";
+            }
+
+            $asin .= $digit;
+        }
+
+        /**
+         *  13桁新ISBNを10桁旧ISBNにする
+         *
+         * @param <type> $asin
+         *
+         */
+        function ISBN_13to10($asin) {
+
+            $asin = substr($asin, 3, 9); // 978+チェックデジット除去
+            return $this->ISBN_9to10($asin);
+        }
+
+        /**
+         *  12桁新ISBNを10桁旧ISBNにする
+         *
+         * @param <type> $asin
+         *
+         */
+        function ISBN_12to10($asin) {
+
+            $asin = substr($asin, 3, 9); // 978除去
+            return $this->ISBN_9to10($asin);
+        }
+
+        /**
+         *
+         * AmazonXMLをキャッシュしてパースしたxmlを返す
+         *
+         *
+         * @param <type> $amazonParam
+         * @return <type> $parsedAmazonXm
+         *
+         */
+        function _cacheAmazonXml($amazonParam) {
+
+            $asin = $amazonParam['itemId'];
+
+            $parsedAmazonXml = '';
+            // キャッシュ作成パッケージを読み込み
+
+            /**
+             * キャッシュの設定
+             * "lifeTime"は秒単位です、ここでは3日に設定しています
+             */
+            $options = array(
+                    "cacheDir" => $this->pluginDir . "/cache/xml/",
+                    "lifeTime" => 3 * 60 * 60 * 24,
+                    "automaticCleaningFactor" => 0
+            );
+
+            require_once("cache/Lite.php");
+            $Cache = new Cache_Lite($options);
+
+            // キャッシュがあるかチェック
+            $xmlCache = $Cache->get($asin);
+            if ($xmlCache) { // あればそれを利用
+                return $xmlCache;
+            } else {
+
+                // Amazon Product Advertising API にアクセスして XML を返してもらう
+                $amazonXml = $this->_fetchAmazonXml($amazonParam);
+
+                // Amazon Webサービスが落ちているなどしてXMLが返ってこない場合
+                if ($amazonXml === false) {
+                    return false;
+                } else {
+                    // XMLが返ってきたら利用
+                    // XMLをキャッシュ
+                    $Cache->save($amazonXml, $asin);
+
+                    return $amazonXml;
+                }
+            }
+        }
+
+        function _getImageUrl($item) {
+
+            $asin = $item->ASIN;
+            $noImageUrl = $this->pluginDirUrl . '/images/printing.png';
+
+            unset($source);
+
+// 入手可能なできるだけ大きい画像を取得
+           $source= $this->_selectMaxImage($item);
+
+
+
+// 外部に画像がなかった場合
+            if (empty($source)) {
+
+                return $noImageUrl;
+
+                // 外部に画像があった場合
+            } else {
+
+                list($width, $height, $fileTypes) = getImageSize($source);
+                $longest = ($width > $height) ? $width : $height;
+
+                // この場合も画像はないと判定
+                if (($width == 1) || ($width == 0)) {
+
+                    return $noImageUrl ;
+                }
+
+                // リサイズ値より画像の長辺の方が長い場合はリサイズ
+                if ($longest > $this->resize) {
+                    $percent = round($this->resize / $longest, 2);
+                    $this->width = round($width * $percent);
+                    $this->height = round($height * $percent);
+                } else {
+                    $this->width = $width;
+                    $this->height = $height;
+                }
+            }
+
+            return $source;
+        }
+
+
+        function  _selectMaxImage($item){
+$this->options['maxSize'] = '161';
+           $Limg = $item->LargeImage;
+           $Mimg = $item->MediumImage;
+           $Simg = $item->SmallImage;
+             if (!empty($Limg) && ($Limg->Width > $this->options['maxSize'] || $Limg->Height > $this->options['maxSize'] )) {
+                $imageURL = $item->LargeImage->URL;
+            }
+            if (!empty($Mimg) && ($Mimg->Width > $this->options['maxSize'] || $Mimg->Height > $this->options['maxSize'])) {
+                $imageURL = $item->MediumImage->URL;
+            }
+            if (!empty($Simg) && ($Simg->Width > $this->options['maxSize'] || $Simg->Height > $this->options['maxSize'])) {
+                $imageURL = $item->SmallImage->URL;
+            }
+
+return $imageURL;
+        }
+
+        /**
+         * カバー画像を表示するコードを生成
+         *
+         * @param <type> $item
+         * @param <type> $asin
+         * @return <type>
+         *
+         */
+        function _cacheImage($item) {
+            $asin = $item['ASIN'];
+            $noImageUrl = $this->pluginDirUrl . '/images/printing.png';
+
+            // 1フォルダにキャッシュする容量が大きくなりすぎないように3つのフォルダに分ける
+            switch (substr($asin, 0, 1)) {
+                case "0": $path = "0";
+                    break;
+                case "4": $path = "4";
+                    break;
+                case "B": $path = "B";
+                    break;
+                default : $path = "unknown";
+                    break;
+            }
+
+
+            // カバー画像のパス
+            $img_path = $this->pluginDir . "/cache/img/" . $path . "/" . $asin . ".jpg";
+            $img_url = $this->pluginDirUrl . "/cache/img/" . $path . "/" . $asin . ".jpg";
+
+            unset($source);
+
+            // キャッシュされた画像の設定
+            if (file_exists($img_url)) {
+                list($this->width, $this->height) = getImageSize($img_url);
+                // キャッシュがない場合、画像を取得して設定
+            } else {
+
+                // 入手可能なできるだけ大きい画像を取得
+
+                if (!empty($item->LargeImage->URL)) {
+                    $source = $item->LargeImage->URL;
+                } elseif (!empty($item->MediumImage->URL)) {
+                    $source = $item->MediumImage->URL;
+                } elseif (!empty($item->SmallImage->URL)) {
+                    $source = $item->SmallImage->URL;
+                }
+
+                // 外部に画像がなかった場合
+                if (empty($source)) {
+
+                    return $noImageUrl;
+
+                    // 外部に画像があった場合
+                } else {
+
+                    list($width, $height, $fileTypes) = getImageSize($source);
+                    $longest = ($width > $height) ? $width : $height;
+
+                    // この場合も画像はないと判定
+                    if (($width == 1) || ($width == 0)) {
+
+                        return $noImageUrl;
+                    }
+
+                    // リサイズ値より画像の長辺の方が長い場合はリサイズ
+                    if ($longest > $this->resize) {
+                        $percent = round($this->resize / $longest, 2);
+                        $this->width = round($width * $percent);
+                        $this->height = round($height * $percent);
+                    } else {
+                        $this->width = $width;
+                        $this->height = $height;
+                    }
+                }
+
+                // 画像の読み込み
+                switch ($fileTypes) {
+                    case "2": $bg = ImageCreateFromJPEG($source);
+                        break;
+                    case "3": $bg = ImageCreateFromPNG($source);
+                        break;
+                    case "1": $bg = ImageCreateFromGIF($source);
+                        break;
+                    default : return $noImageUrl;
+                }
+
+                // 画像のリサイズ
+                $im = ImageCreateTrueColor($this->width, $this->height) or die("Cannot create image");
+                ImageCopyResampled($im, $bg, 0, 0, 0, 0, $this->width, $this->height, $width, $height);
+
+                // ファイルのキャッシュとメモリキャッシュの廃棄
+                ImageJPEG($im, $img_path, 80);
+                ImageDestroy($bg);
+                ImageDestroy($im);
+            }
+
+            return $img_url;
+        }
+
+        /*                                 * * Amazonコードを生成 ** */
+        function _makeHtmlCode($item, $asin, $URL, $NumOfDiscs, $imageUrl, $str_creator, $KeywordURL, $pubDate, $RunningTime) {
 
             $htmlCode = "\n";
 
@@ -947,7 +1183,14 @@ EOF;
             // カバー画像
             $htmlCode .= '<div class="image">';
             $htmlCode .= '<a href="' . $URL . '" class="url" ';
-            $htmlCode .= 'title="Amazon.co.jp: ">' . $Image . "</a>";
+            $htmlCode .= 'title="Amazon.co.jp: ">';
+
+            $htmlCode = '<img src="' . $imageUrl . '" ';
+            $htmlCode .= 'width="' . $this->width . '" height="' . $this->height . '"';
+            $htmlCode .= 'class="photo" ';
+            //            $htmlCode .= 'class="photo reflect rheight20 ropacity40" ';
+            $htmlCode .= 'alt="' . $item->ItemAttributes->Title . __(" - cover art", "$this->i18nDomain") . '" />';
+            $htmlCode . "</a>";
             $htmlCode .= "</div>";
 
             // 購入者情報
@@ -1038,36 +1281,6 @@ EOF;
             return $htmlCode;
         }
 
-        /**
-         * 入力されたASINをチェック
-         *
-         * @param <type> $asin
-         *
-         */
-        function _checkAsin($asin) {
-
-            if (empty($asin)) {
-                $this->errors[] = __("Please set ASIN for Amazon-Linkage Plugin.", "$this->i18nDomain");
-            }
-
-            $asin = preg_replace("/[\- ]/", "", $asin);
-            $length = strlen($asin);
-
-            if (($length != 9) && ($length != 10) && ($length != 13)) {
-                $this->errors[] = __("Please check the length of ASIN (accept only 9, 10, 13 letters one).", "$this->i18nDomain");
-            }
-
-
-            // ASIN(ここではISBN)を10桁に変換
-            switch ($length) {
-                case "13": $this->ISBN_13to10($asin);
-                    break;
-                case "9" : $this->ISBN_9to10($asin);
-                    break;
-                case "12": $this->ISBN_12to10($asin);
-                    break;
-            }
-        }
 
         /**
          *
@@ -1132,8 +1345,7 @@ EOF;
          * @return <type> $tmpCode
          *
          */
-        function getPrice(
-                $item) {
+        function getPrice($item) {
 
             // Price $item->ItemAttributes->ListPrice->Amount
             // discountPrice $item->OfferSummary->LowestNewPrice->Amount
@@ -1203,185 +1415,6 @@ EOF;
             return $tmpCode;
         }
 
-        /*                                 * * レビューを書いた人を示すmicroformaticなXHTMLを返す
-
-                                  function getCodeGenerator(){
-
-                                  $tmpCode =	'<dl class="hidden">'."\n";
-                                  $tmpCode .= '<dt>version</dt><dd><span class="version">0.1</span></dd>';
-                                  $tmpCode .= '<dt>type</dt><dd><span class="type">product</span></dd>';
-                                  $tmpCode .= '<dt>reviewer</dt><dd><a href="http://www.openvista.jp/person/leva" class="reviewer">leva</a></dd>';
-                                  $tmpCode .= '</dl>';
-
-                                  return $tmpCode;
-
-                                  }** */
-
-        /**
-         * カバー画像を表示するコードを生成
-         *
-         * @param <type> $item
-         * @param <type> $asin
-         * @return <type>
-         *
-         */
-        function getCover($item, $asin) {
-
-            // 1フォルダにキャッシュする容量が大きくなりすぎないように3つのフォルダに分ける
-            switch (substr($asin, 0, 1)) {
-                case "0": $path = "0";
-                    break;
-                case "4": $path = "4";
-                    break;
-                case "B": $path = "B";
-                    break;
-                default : $path = "unknown";
-                    break;
-            }
-
-
-            // カバー画像のパス
-            $img_path = $this->pluginDir . "/cache/img/" . $path . "/" . $asin . ".jpg";
-            $img_url = $this->pluginDirUrl . "/cache/img/" . $path . "/" . $asin . ".jpg";
-
-            unset($source);
-
-            // キャッシュされた画像の設定
-            if (file_exists($img_url)) {
-
-                list($this->width_, $this->height_) = getImageSize($img_url);
-
-                // キャッシュがない場合、画像を取得して設定
-            } else {
-
-                // 入手可能なできるだけ大きい画像を取得
-
-
-                if (!empty($item->LargeImage->URL)) {
-                    $source = $item->LargeImage->URL;
-                } elseif (!empty($item->MediumImage->URL)) {
-                    $source = $item->MediumImage->URL;
-                } elseif (!empty($item->SmallImage->URL)) {
-                    $source = $item->SmallImage->URL;
-                }
-
-                // 外部に画像がなかった場合
-                if (empty($source)) {
-
-                    return $this->setLackedCover();
-
-                    // 外部に画像があった場合
-                } else {
-
-                    list($width, $height, $fileTypes) = getImageSize($source);
-                    $longest = ($width > $height) ? $width : $height;
-
-                    // この場合も画像はないと判定
-                    if (($width == 1) || ($width == 0)) {
-
-                        return $this->setLackedCover();
-                    }
-
-                    // リサイズ値より画像の長辺の方が長い場合はリサイズ
-                    if ($longest > $this->resize) {
-                        $percent = round($this->resize / $longest, 2);
-                        $this->width_ = round($width * $percent);
-                        $this->height_ = round($height * $percent);
-                    } else {
-                        $this->width_ = $width;
-                        $this->height_ = $height;
-                    }
-                }
-
-                // 画像の読み込み
-                switch ($fileTypes) {
-                    case "2": $bg = ImageCreateFromJPEG($source);
-                        break;
-                    case "3": $bg = ImageCreateFromPNG($source);
-                        break;
-                    case "1": $bg = ImageCreateFromGIF($source);
-                        break;
-                    default : return $this->setLackedCover();
-                }
-
-                // 画像のリサイズ
-                $im = ImageCreateTrueColor($this->width_, $this->height_) or die("Cannot create image");
-                ImageCopyResampled($im, $bg, 0, 0, 0, 0, $this->width_, $this->height_, $width, $height);
-
-                // ファイルのキャッシュとメモリキャッシュの廃棄
-                ImageJPEG($im, $img_path, 80);
-                ImageDestroy($bg);
-                ImageDestroy($im);
-            }
-
-            $Image = '<img src="' . $img_url . '" ';
-            $Image .= 'width="' . $this->width_ . '" height="' . $this->height_ . '"';
-            $Image .= 'class="photo" ';
-            //            $Image .= 'class="photo reflect rheight20 ropacity40" ';
-            $Image .= 'alt="' . $item->ItemAttributes->Title . __(" - cover art", "$this->i18nDomain") . '" />';
-
-            return $Image;
-        }
-
-        /*                                 * * カバー画像がない場合、その旨のカバー画像を設定する ** */
-
-        function setLackedCover() {
-
-            list($this->width_, $this->height_) = array(160, 260);
-            $Image = '<img src="' . $this->pluginDirUrl . '/images/printing.png" ';
-            $Image .= 'width="160" height="260" class="photo" ';
-            $Image .= 'alt="' . __("Cover image is not found", "$this->i18nDomain") . '" />';
-
-
-            return $Image;
-        }
-
-        /**
-         * 9桁ISBNにチェックデジットを足す
-         *
-         * @param <type> $asin
-         *
-         */
-        function ISBN_9to10($asin) {
-
-            // 総和を求める
-            for ($digit = 0, $i = 0; $i < 9; $i++) {
-                $digit += $asin {
-                        $i} * (10 - $i);
-            }
-
-            // 11から総和を11で割った余りを引く（10の場合はX, 11の場合は0に）
-            $digit = (11 - ($digit % 11)) % 11;
-            if ($digit == 10) {
-                $digit = "X";
-            }
-
-            $asin .= $digit;
-        }
-
-        /**
-         *  13桁新ISBNを10桁旧ISBNにする
-         *
-         * @param <type> $asin
-         *
-         */
-        function ISBN_13to10($asin) {
-
-            $asin = substr($asin, 3, 9); // 978+チェックデジット除去
-            return $this->ISBN_9to10($asin);
-        }
-
-        /**
-         *  12桁新ISBNを10桁旧ISBNにする
-         *
-         * @param <type> $asin
-         *
-         */
-        function ISBN_12to10($asin) {
-
-            $asin = substr($asin, 3, 9); // 978除去
-            return $this->ISBN_9to10($asin);
-        }
 
         /*
                                  * プラグイン有効化時に毎日発生するイベントを、一度行ってから登録
@@ -1389,7 +1422,6 @@ EOF;
                                  *
                                  *
         */
-
         function _rideramazonRegisterHook() {
 
 
@@ -1404,7 +1436,6 @@ EOF;
                                  *
                                  *
         */
-
         function _rideramazonDailyEvent() {
 
             $this->_getReport();
@@ -1417,7 +1448,6 @@ EOF;
                                  *
                                  *
         */
-
         function _rideramazonNotRegisterHook() {
             wp_clear_scheduled_hook('_rideramazonDailyEvent');
         }
