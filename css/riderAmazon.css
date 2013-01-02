@@ -5,14 +5,14 @@
 *riderAmazon CSS
 *
 */
-.riderAmazon * {
+.riderAmazonItem * {
     margin:0;
     padding:0;
     border:0 none ;
 
 }
 
-.riderAmazon{
+.riderAmazonItem{
 
     margin:2em 0 0 ;
     padding:1em;
@@ -23,21 +23,21 @@
     border-radius:20px;
     -moz-border-radius:20px;
     -webkit-border-radius:20px;
-    box-shadow:  5px 5px 5px  #888;
-    -moz-box-shadow:7px 7px 7px #888;
-    -webkit-box-shadow: 5px 5px 5px #888;
+    box-shadow:  2px 2px 2px  #888;
+    -webkit-box-shadow: 2px 2px 2px #888;
 
 }
 
-.riderAmazon .fn{
+.riderAmazonItem .fn{
     margin: 0 0 1em;
     font-size:1.1em;
+    font-weight: bold;
    /* text-shadow: 3px 3px 5px #888; */
 
 
 }
 
-.riderAmazon .image{
+.riderAmazonItem .image{
     float:left;
     margin: 0 1.5em 1.5em 0;
     box-shadow: 5px 5px 5px #888;
@@ -48,64 +48,60 @@
 
 }
 
-.riderAmazon a img{
-    
+.riderAmazonItem a img{
+    width: 100%;
+    max-width: 100%;
 }
 
-.riderAmazon a:hover img{
+.riderAmazonItem a:hover img{
 
 }
 
-.riderAmazon strong{
+.riderAmazonItem strong{
 	color:#ff4400;
 }
 
 
-.riderAmazon .buttons{
+.riderAmazonItem .buttons{
 	margin:0.5em 0;
 
 }
 
-.riderAmazon a.showdetailbutton{
+.riderAmazonItem a.showdetailbutton{
 	float:left;
 
 }
-.riderAmazon a.showdetailbutton img{
+.riderAmazonItem a.showdetailbutton img{
 
 }
-.riderAmazon .showaddcartbutton{
-
-}
-
-.riderAmazon .showaddcartbutton input{
+.riderAmazonItem .showaddcartbutton{
 
 }
 
-.riderAmazon .showaddcartbutton p{
+.riderAmazonItem .showaddcartbutton input{
+
+}
+
+.riderAmazonItem .showaddcartbutton p{
 
 }
 
 
-.riderAmazon table{
+.riderAmazonItem table{
         border-width: 1px ;
     border-style: solid;
     background-color: #eee;
     border-color: #999;
     margin: 0.5em 1em;
     border-spacing:0;
-    border-radius:10px;
-    -moz-border-radius:10px ;
-    -webkit-border-radius:10px;
-    box-shadow:  5px 5px 5px  #888;
-    -moz-box-shadow:5px 5px 5px #888;
-    -webkit-box-shadow: 5px 5px 5px #888;
     border-collapse : separate ;
+    width: 90%;
 }
 
 
 
 
-.riderAmazon table th, .riderAmazon table td{
+.riderAmazonItem table th, .riderAmazonItem table td{
     background-color:transparent;
     margin:1em 0;
     border-spacing:0;

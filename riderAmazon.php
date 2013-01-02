@@ -1138,7 +1138,7 @@ echo $this->options['imageCache'] ;
 
             $htmlCode = "\n";
 
-            $htmlCode .= '<div class="riderAmazon">';
+            $htmlCode .= '<div class="riderAmazonItem">';
             $htmlCode .= '<div class="hreview">';
             $htmlCode .= '<div class="item item-' . $asin . '">';
 
